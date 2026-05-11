@@ -1,0 +1,3816 @@
+<!doctype html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Daily Hub",
+  "schemaVersion": 1,
+  "description": "Daily Hub: weekly digest with timeline, KPIs, action items, completed work, meeting agendas, and open Linear tickets — across Slack, Email, Calendar, Drive, Linear, and Cowork sessions.",
+  "mcpTools": [
+    "mcp__6e43679b-8a0c-4670-b7e5-e8fdb8cb6991__slack_search_public_and_private",
+    "mcp__51284470-dcb3-453b-bcef-aa210156bb6b__list_events",
+    "mcp__51284470-dcb3-453b-bcef-aa210156bb6b__create_event",
+    "mcp__10bf87a1-2f7e-41b0-8861-1f10b53ee2ac__list_recent_files",
+    "mcp__6ad96533-53be-4742-aa34-c62c6d248e23__search_threads",
+    "mcp__c8b499e2-9692-442e-8c7a-d6a24aa4a615__list_teams",
+    "mcp__c8b499e2-9692-442e-8c7a-d6a24aa4a615__save_issue",
+    "mcp__c8b499e2-9692-442e-8c7a-d6a24aa4a615__list_issues",
+    "mcp__session_info__list_sessions",
+    "mcp__session_info__read_transcript"
+  ],
+  "mcpServerNames": [
+    "Slack",
+    "Google Calendar",
+    "Google Calendar",
+    "Google Drive",
+    "Gmail",
+    "Linear",
+    "Linear",
+    "Linear",
+    "session_info",
+    "session_info"
+  ]
+}
+</script>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Daily Hub</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    color: #1d1d1f; background: #ffffff;
+  }
+  .wrap { max-width: 840px; margin: 0 auto; padding: 18px 18px 60px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  h1 { font-size: 18px; font-weight: 600; margin: 0; }
+  .team-picker { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6e6e73; }
+  .team-picker select {
+    font: inherit; color: #1d1d1f; padding: 3px 6px; border: 1px solid #d2d2d7;
+    border-radius: 6px; background: #fff;
+  }
+  .header-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .open-in-apps {
+    display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6e6e73;
+    cursor: pointer; user-select: none;
+  }
+  .open-in-apps input { cursor: pointer; }
+  .open-in-apps:hover { color: #1d1d1f; }
+  .tabs {
+    display: flex; gap: 2px; border-bottom: 1px solid #ececec; margin-bottom: 4px;
+    position: sticky; top: 0; background: #ffffff; z-index: 10; padding-top: 4px;
+  }
+  .tab {
+    flex: 1; padding: 10px 14px; cursor: pointer; border: none; background: transparent;
+    font: inherit; color: #6e6e73; border-bottom: 2px solid transparent; transition: all .12s;
+    text-align: center;
+  }
+  .tab .label { font-weight: 600; font-size: 13px; }
+  .tab .range { font-size: 11px; color: #8e8e93; margin-top: 2px; }
+  .tab.active { color: #1d1d1f; border-bottom-color: #1d1d1f; }
+  .tab:hover:not(.active) { color: #1d1d1f; background: #fafafa; }
+  h2 {
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #6e6e73; margin: 22px 0 10px; padding: 8px 10px;
+    border: 1px solid #ececec; border-radius: 8px; background: #fafafa;
+    display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  h2:hover { background: #f0f0f3; border-color: #d2d2d7; color: #1d1d1f; }
+  h2 .chevron {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 4px;
+    font-size: 13px; color: #5e3aa6; background: #fff; border: 1px solid #e6e4f0;
+    transition: transform .18s, background .12s;
+    flex-shrink: 0; line-height: 1;
+  }
+  h2:hover .chevron { background: #f3eaff; }
+  h2.collapsed .chevron { transform: rotate(-90deg); }
+  h2 .count {
+    background: #fff; color: #1d1d1f; font-weight: 600; font-size: 11px;
+    padding: 2px 8px; border-radius: 10px; letter-spacing: 0;
+    border: 1px solid #ececec;
+  }
+  h2 .label-text { flex: 1; }
+  h2.urgent { color: #b00020; background: #fff4f4; border-color: #f4cccc; }
+  h2.urgent:hover { background: #ffe4e4; border-color: #ec9aaa; color: #8a0018; }
+  h2.urgent .chevron { color: #b00020; border-color: #f4cccc; }
+  h2.urgent:hover .chevron { background: #ffe4e4; }
+  h2.urgent .count { background: #fff; color: #b00020; border-color: #f4cccc; }
+  .section-body.collapsed { display: none; }
+  .section-summary {
+    color: #4a4a4f; font-size: 12.5px; line-height: 1.5; font-style: italic;
+    margin: -4px 0 12px 16px; padding-left: 10px; border-left: 2px solid #e6e4f0;
+  }
+  .section-summary.empty { display: none; }
+  .freshness {
+    display: flex; justify-content: flex-end; align-items: center; gap: 8px;
+    margin-top: 8px; font-size: 11px; color: #8e8e93;
+  }
+  .freshness button {
+    font: inherit; padding: 2px 8px; border-radius: 6px; border: 1px solid #d2d2d7;
+    background: #fff; cursor: pointer; color: #1d1d1f; font-size: 11px;
+  }
+  .freshness button:hover { background: #f5f5f7; }
+  .freshness button:disabled { opacity: 0.5; cursor: default; }
+  .cache-info {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 18px; padding-top: 10px; border-top: 1px solid #ececec;
+    font-size: 11px; color: #8e8e93;
+  }
+  .cache-info a { color: #8e8e93; cursor: pointer; text-decoration: underline; }
+  .cache-info a:hover { color: #1d1d1f; }
+  /* ============== Timeline ============== */
+  .tl-toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 18px; margin-bottom: 14px; gap: 12px; flex-wrap: wrap;
+  }
+  .tl-range-selector { display: flex; gap: 4px; }
+  .tl-range-btn {
+    font: inherit; font-size: 12px; padding: 5px 12px;
+    border: 1px solid #d2d2d7; background: #fff; cursor: pointer; color: #1d1d1f;
+    border-radius: 6px;
+  }
+  .tl-range-btn:hover { background: #f5f5f7; }
+  .tl-range-btn.active { background: #5e3aa6; color: #fff; border-color: #5e3aa6; }
+  .tl-legend { display: flex; gap: 12px; align-items: center; font-size: 11px; color: #6e6e73; }
+  .tl-leg-dot {
+    display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+    margin-right: 4px; vertical-align: middle;
+  }
+  .tl-leg-dot.slack { background: #0a5ed3; }
+  .tl-leg-dot.email { background: #d4314a; }
+  .tl-leg-dot.meeting { background: #5e3aa6; }
+  .tl-leg-dot.linear { background: #1f7a3a; }
+  .tl-frame {
+    background: #fff; border: 1px solid #ececec; border-radius: 12px; padding: 14px 14px 4px;
+    margin-bottom: 14px;
+  }
+  .tl-grid {
+    display: grid; grid-template-columns: 80px 1fr; gap: 10px;
+  }
+  .tl-lane-labels { display: flex; flex-direction: column; gap: 2px; padding-top: 0; }
+  .tl-lane-label {
+    font-size: 11px; color: #6e6e73; font-weight: 600; height: 36px;
+    display: flex; align-items: center; padding-left: 4px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .tl-canvas-wrap { position: relative; }
+  .tl-canvas {
+    position: relative; padding-bottom: 0;
+  }
+  .tl-lane {
+    position: relative; height: 36px; border-bottom: 1px dashed #f0f0f3;
+  }
+  .tl-lane:last-of-type { border-bottom: 1px solid #ececec; }
+  .tl-item {
+    position: absolute; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 11px; color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    transition: transform .12s, box-shadow .12s;
+    z-index: 2;
+  }
+  .tl-item:hover { transform: translate(-50%, -50%) scale(1.18); box-shadow: 0 2px 8px rgba(0,0,0,0.18); z-index: 3; }
+  .tl-item.selected {
+    outline: 2px solid #1d1d1f; outline-offset: 1px;
+  }
+  .tl-item.slack { background: #0a5ed3; }
+  .tl-item.email { background: #d4314a; }
+  .tl-item.meeting { background: #5e3aa6; }
+  .tl-item.linear.created { background: #1f7a3a; }
+  .tl-item.linear.completed { background: #5a7a1f; }
+  .tl-item.cluster { background: #6e6e73; font-size: 10px; font-weight: 700; }
+  .tl-meeting-block {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    height: 18px; min-width: 6px; border-radius: 4px;
+    background: linear-gradient(90deg, #5e3aa6, #7a5cc7);
+    cursor: pointer; opacity: 0.85; z-index: 2;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  }
+  .tl-meeting-block:hover { opacity: 1; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+  .tl-meeting-block.declined { opacity: 0.4; background: #c7c7cc; }
+  .tl-today-line {
+    position: absolute; top: 0; bottom: 0; width: 1.5px; background: #d4314a;
+    pointer-events: none; z-index: 1;
+  }
+  .tl-today-line .tl-today-label {
+    position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; color: #d4314a; font-weight: 700; letter-spacing: 0.08em;
+    background: #fff; padding: 0 4px;
+  }
+  .tl-day-axis {
+    display: flex; position: relative; margin-top: 4px;
+    font-size: 10px; color: #6e6e73;
+  }
+  .tl-day {
+    flex: 1; border-left: 1px solid #f5f5f7; padding: 6px 0 4px;
+    text-align: center; min-width: 0;
+  }
+  .tl-day .day-of-week { letter-spacing: 0.06em; text-transform: uppercase; font-weight: 500; }
+  .tl-day .day-num { font-size: 11px; color: #1d1d1f; font-weight: 600; margin-top: 1px; }
+  .tl-day.weekend { background: #fafafa; }
+  .tl-day.weekend .day-of-week, .tl-day.weekend .day-num { color: #c7c7cc; }
+  .tl-day.today .day-of-week, .tl-day.today .day-num { color: #d4314a; }
+  .tl-detail {
+    background: #fafafa; border: 1px solid #ececec; border-radius: 10px;
+    padding: 14px 16px; min-height: 110px; font-size: 13px;
+  }
+  .tl-detail-empty { color: #8e8e93; font-style: italic; font-size: 12.5px; }
+  .tl-detail-card .head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    margin-bottom: 6px;
+  }
+  .tl-detail-card .who { font-weight: 600; }
+  .tl-detail-card .when { color: #8e8e93; font-size: 12px; }
+  .tl-detail-card .subject {
+    color: #6e6e73; font-size: 12px; font-style: italic; margin-bottom: 6px;
+  }
+  .tl-detail-card .body {
+    color: #3a3a3c; line-height: 1.45; padding: 8px 12px;
+    background: #fff; border: 1px solid #ececec; border-radius: 8px;
+    margin-top: 6px;
+  }
+  .tl-detail-card .footer {
+    margin-top: 8px; display: flex; gap: 14px; font-size: 11px; color: #6e6e73;
+    align-items: center;
+  }
+  .tl-detail-card .footer a { color: #0a5ed3; text-decoration: none; }
+  .tl-detail-card .footer a:hover { text-decoration: underline; }
+  .tl-detail-card .nav { display: flex; gap: 6px; }
+  .tl-detail-card .nav button {
+    font: inherit; font-size: 11px; padding: 3px 8px; border: 1px solid #d2d2d7;
+    background: #fff; cursor: pointer; border-radius: 5px;
+  }
+  .tl-detail-card .nav button:hover { background: #f5f5f7; }
+  .tl-detail-card .nav button:disabled { opacity: 0.4; cursor: default; }
+  .tl-empty {
+    text-align: center; color: #8e8e93; font-style: italic;
+    padding: 30px 12px; font-size: 13px;
+  }
+  .tl-toolbar-right { display: flex; align-items: center; gap: 14px; }
+  .tl-backfill-btn {
+    font: inherit; font-size: 11px; padding: 5px 10px; border-radius: 6px;
+    border: 1px solid #5e3aa6; background: #fff; color: #5e3aa6; cursor: pointer; font-weight: 500;
+  }
+  .tl-backfill-btn:hover { background: #f3eaff; }
+  .tl-backfill-btn:disabled { opacity: 0.6; cursor: default; }
+  .tl-metrics {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    margin-bottom: 16px;
+  }
+  .tl-kpi {
+    background: #fff; border: 1px solid #ececec; border-radius: 10px; padding: 12px 14px;
+  }
+  .tl-kpi .kpi-label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #6e6e73; margin-bottom: 4px;
+  }
+  .tl-kpi .kpi-big {
+    font-size: 22px; font-weight: 700; color: #1d1d1f; line-height: 1;
+  }
+  .tl-kpi .kpi-sub {
+    font-size: 11px; color: #6e6e73; margin-top: 6px; line-height: 1.5;
+  }
+  .tl-kpi .kpi-sub .pos { color: #1f7a3a; }
+  .tl-kpi .kpi-sub .neg { color: #b00020; }
+  .tl-kpi .kpi-sub .neutral { color: #6e6e73; }
+  .tl-kpi.slack { border-top: 3px solid #0a5ed3; }
+  .tl-kpi.email { border-top: 3px solid #d4314a; }
+  .tl-kpi.meetings { border-top: 3px solid #5e3aa6; }
+  .tl-kpi.linear { border-top: 3px solid #1f7a3a; }
+  .tl-drill-banner {
+    display: none; align-items: center; gap: 14px;
+    background: #f3eaff; border: 1px solid #e6e4f0; border-radius: 8px;
+    padding: 8px 14px; margin-bottom: 12px;
+  }
+  .tl-back-btn {
+    font: inherit; font-size: 12px; padding: 4px 10px; border: 1px solid #5e3aa6;
+    background: #fff; color: #5e3aa6; cursor: pointer; border-radius: 6px; font-weight: 500;
+  }
+  .tl-back-btn:hover { background: #fff7e6; }
+  .tl-drill-title { font-weight: 600; color: #1d1d1f; font-size: 13px; }
+  /* ============== Next action card ============== */
+  .next-action-stack { margin: 14px 0; }
+  .next-action-stack .na-stack-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #a05a00; margin-bottom: 8px;
+  }
+  .next-action-card {
+    margin-bottom: 8px; padding: 12px 14px;
+    background: linear-gradient(135deg, #fff7e6 0%, #fff4f4 100%);
+    border: 1px solid #f4d4a8; border-radius: 10px;
+    position: relative; transition: opacity .2s;
+  }
+  .next-action-card.first {
+    background: linear-gradient(135deg, #fff7e6 0%, #fff4f4 100%);
+    border-width: 1.5px;
+  }
+  .next-action-card.dismissing { opacity: 0; }
+  .next-action-card .na-rank {
+    position: absolute; top: 10px; right: 12px;
+    font-size: 10px; color: #a05a00; opacity: 0.6;
+  }
+  .next-action-card .na-title {
+    font-size: 15px; font-weight: 600; color: #1d1d1f; line-height: 1.3; margin-bottom: 5px;
+    padding-right: 28px;
+  }
+  .next-action-card .na-why { color: #3a3a3c; font-size: 12.5px; line-height: 1.5; margin-bottom: 8px; }
+  .next-action-card .na-footer {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  .next-action-card .na-source { font-size: 11px; color: #6e6e73; flex: 1; }
+  .next-action-card .na-source a { color: #a05a00; text-decoration: none; font-weight: 500; }
+  .next-action-card .na-source a:hover { text-decoration: underline; }
+  .next-action-card .na-dismiss {
+    font: inherit; font-size: 11px; padding: 3px 9px; border-radius: 5px;
+    border: 1px solid #d2d2d7; background: rgba(255,255,255,0.7);
+    color: #6e6e73; cursor: pointer; flex-shrink: 0;
+  }
+  .next-action-card .na-dismiss:hover { background: #fff; color: #1d1d1f; border-color: #a05a00; }
+  .next-action-empty {
+    margin: 14px 0; padding: 16px 18px;
+    background: linear-gradient(135deg, #e6f4ea 0%, #f5f5fb 100%);
+    border: 1px solid #c5e7d0; border-radius: 12px;
+    color: #1f7a3a; font-size: 13.5px; font-weight: 500;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .next-action-empty .na-check {
+    width: 22px; height: 22px; border-radius: 50%; background: #1f7a3a; color: #fff;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0;
+  }
+  .next-action-empty .na-empty-detail {
+    color: #3a3a3c; font-size: 12.5px; font-weight: normal; margin-top: 2px;
+  }
+  .next-action-restore {
+    font: inherit; font-size: 11px; margin-left: auto; padding: 3px 9px; border-radius: 5px;
+    border: 1px solid #c5e7d0; background: #fff; cursor: pointer; color: #1f7a3a;
+  }
+  .next-action-restore:hover { background: #e6f4ea; }
+  /* ============== Memory.md sections ============== */
+  .memory-block { margin: 14px 0 18px; }
+  .memory-section {
+    background: #fff; border: 1px solid #ececec; border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 8px;
+  }
+  .memory-section .ms-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    color: #6e6e73; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .memory-section .ms-label .ms-source {
+    font-size: 9px; color: #c7c7cc; font-weight: 500; letter-spacing: 0.04em;
+    margin-left: auto;
+  }
+  .memory-section .ms-empty { color: #8e8e93; font-size: 12.5px; font-style: italic; }
+  .memory-section .ms-list { display: flex; flex-direction: column; gap: 6px; }
+  .memory-section .ms-row {
+    display: flex; align-items: baseline; gap: 8px; font-size: 13px; line-height: 1.45;
+  }
+  .memory-section .ms-row .stale-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 6px;
+  }
+  .stale-dot.fresh { background: #1f7a3a; }
+  .stale-dot.aging { background: #c98800; }
+  .stale-dot.stale { background: #b00020; }
+  .memory-section .ms-row .ws-name { font-weight: 600; color: #1d1d1f; }
+  .memory-section .ms-row .ws-status { color: #6e6e73; }
+  .memory-section .ms-row .ws-ref a { color: #0a5ed3; text-decoration: none; font-size: 11px; }
+  .memory-section .ms-row .ws-age { color: #8e8e93; font-size: 11px; margin-left: auto; flex-shrink: 0; }
+  .memory-section .ms-workstream { padding: 4px 0; border-bottom: 1px dashed #f5f5f7; }
+  .memory-section .ms-workstream:last-child { border-bottom: none; }
+  .memory-section .ms-ws-row {
+    display: flex; align-items: baseline; gap: 8px; font-size: 13px; line-height: 1.45;
+  }
+  .memory-section .ms-ws-row .stale-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 6px;
+  }
+  .memory-section .ms-ws-row .ws-name { font-weight: 600; color: #1d1d1f; }
+  .memory-section .ms-ws-row .ws-status { color: #6e6e73; flex: 1; }
+  .memory-section .ms-ws-row .ws-ref { color: #0a5ed3; text-decoration: none; font-size: 11px; }
+  .memory-section .ms-ws-row .ws-age { color: #8e8e93; font-size: 11px; flex-shrink: 0; min-width: 28px; text-align: right; }
+  .memory-section .ws-next {
+    margin: 2px 0 4px 18px; font-size: 12px; color: #3a3a3c; line-height: 1.45;
+  }
+  .memory-section .ws-next .ws-next-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    color: #a05a00; margin-right: 4px;
+  }
+  .memory-section .ms-decision {
+    display: flex; gap: 10px; font-size: 12.5px; line-height: 1.5;
+    padding: 4px 0; border-bottom: 1px dashed #f5f5f7;
+  }
+  .memory-section .ms-decision:last-child { border-bottom: none; }
+  .memory-section .ms-decision .ms-date {
+    color: #8e8e93; font-size: 11px; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    flex-shrink: 0; min-width: 84px; padding-top: 1px;
+  }
+  .memory-section .ms-decision-body { flex: 1; }
+  .memory-section .ms-decision .ms-text { color: #3a3a3c; }
+  .memory-section .ms-decision-meta {
+    margin-top: 3px; display: flex; gap: 8px; align-items: center;
+  }
+  .memory-section .ms-decision.superseded .ms-text {
+    color: #8e8e93; text-decoration: line-through;
+  }
+  .memory-section .ms-decision.superseded .ms-date { color: #c7c7cc; }
+  .memory-section .ms-superseded {
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    color: #b00020; background: #fff4f4; padding: 1px 6px; border-radius: 8px;
+    border: 1px solid #f4cccc;
+  }
+  .ws-badge {
+    display: inline-block; font-size: 10px; font-weight: 600; padding: 1px 7px;
+    border-radius: 9px; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    letter-spacing: 0.02em;
+  }
+  /* Deterministic palette per slug — first djb2 char picks the color */
+  .ws-badge.ws-badge-0, .ws-badge.ws-badge-1, .ws-badge.ws-badge-2, .ws-badge.ws-badge-3 { background: #f3eaff; color: #5e3aa6; border: 1px solid #e6e4f0; }
+  .ws-badge.ws-badge-4, .ws-badge.ws-badge-5, .ws-badge.ws-badge-6, .ws-badge.ws-badge-7 { background: #e8f1ff; color: #0a5ed3; border: 1px solid #d0e3ff; }
+  .ws-badge.ws-badge-8, .ws-badge.ws-badge-9, .ws-badge.ws-badge-a, .ws-badge.ws-badge-b { background: #e6f4ea; color: #1f7a3a; border: 1px solid #c5e7d0; }
+  .ws-badge.ws-badge-c, .ws-badge.ws-badge-d, .ws-badge.ws-badge-e, .ws-badge.ws-badge-f { background: #fff4e0; color: #a05a00; border: 1px solid #f4d4a8; }
+  .ws-badge.ws-badge-g, .ws-badge.ws-badge-h, .ws-badge.ws-badge-i, .ws-badge.ws-badge-j { background: #fbe9eb; color: #a8324a; border: 1px solid #f4cccc; }
+  .ws-badge.ws-badge-k, .ws-badge.ws-badge-l, .ws-badge.ws-badge-m, .ws-badge.ws-badge-n { background: #eef7ee; color: #1f7a3a; border: 1px solid #c5e7d0; }
+  .ws-badge.ws-badge-o, .ws-badge.ws-badge-p, .ws-badge.ws-badge-q, .ws-badge.ws-badge-r { background: #f5f5fb; color: #5e3aa6; border: 1px solid #e6e4f0; }
+  .ws-badge.ws-badge-s, .ws-badge.ws-badge-t, .ws-badge.ws-badge-u, .ws-badge.ws-badge-v { background: #fff7e6; color: #a05a00; border: 1px solid #f4d4a8; }
+  .ws-badge.ws-badge-w, .ws-badge.ws-badge-x, .ws-badge.ws-badge-y, .ws-badge.ws-badge-z { background: #f0f0f3; color: #6e6e73; border: 1px solid #d2d2d7; }
+  .memory-section .ms-context-event {
+    display: flex; gap: 10px; font-size: 12.5px; line-height: 1.5; padding: 4px 0;
+    border-bottom: 1px dashed #f5f5f7;
+  }
+  .memory-section .ms-context-event:last-child { border-bottom: none; }
+  .memory-section .ms-context-event .ms-when {
+    color: #8e8e93; font-size: 11px; min-width: 70px; flex-shrink: 0;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  .memory-section .ms-context-event .ms-title { font-weight: 500; color: #1d1d1f; }
+  .memory-section .ms-context-event .ms-prep {
+    margin-top: 2px; font-size: 11px; color: #6e6e73;
+  }
+  .memory-section .ms-context-event .ms-prep a { color: #5e3aa6; text-decoration: none; }
+  .memory-section .ms-pulse-row {
+    display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+    font-size: 12.5px; padding: 4px 0;
+  }
+  .memory-section .ms-pulse-name { font-weight: 500; color: #1d1d1f; }
+  .memory-section .ms-pulse-days {
+    font-size: 11px; padding: 1px 8px; border-radius: 9px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  .ms-pulse-days.fresh { background: #e6f4ea; color: #1f7a3a; }
+  .ms-pulse-days.aging { background: #fff4e0; color: #a05a00; }
+  .ms-pulse-days.stale { background: #ffe4e4; color: #b00020; }
+  /* ============== Chat panel ============== */
+  .chat-toggle {
+    position: fixed; bottom: 20px; right: 20px;
+    background: #5e3aa6; color: #fff; border: none; border-radius: 24px;
+    padding: 10px 16px; cursor: pointer; box-shadow: 0 4px 12px rgba(94,58,166,0.35);
+    display: flex; align-items: center; gap: 8px;
+    font: inherit; font-size: 13px; font-weight: 600;
+    z-index: 100;
+    transition: transform .12s, box-shadow .12s;
+  }
+  .chat-toggle:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(94,58,166,0.45); }
+  .chat-toggle-icon { font-size: 16px; line-height: 1; }
+  .chat-panel {
+    position: fixed; bottom: 20px; right: 20px;
+    width: 380px; max-width: calc(100vw - 40px);
+    height: 540px; max-height: calc(100vh - 40px);
+    background: #fff; border: 1px solid #e6e4f0; border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+    display: none; flex-direction: column;
+    z-index: 101;
+    overflow: hidden;
+  }
+  .chat-panel.open { display: flex; }
+  .chat-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; border-bottom: 1px solid #ececec;
+    background: linear-gradient(135deg, #f5f5fb 0%, #fafaff 100%);
+  }
+  .chat-title { font-weight: 600; font-size: 13px; color: #1d1d1f; }
+  .chat-header-actions { display: flex; gap: 6px; }
+  .chat-clear, .chat-close {
+    font: inherit; font-size: 11px; padding: 3px 9px; border-radius: 5px;
+    border: 1px solid #d2d2d7; background: #fff; cursor: pointer; color: #6e6e73;
+  }
+  .chat-close { font-size: 16px; line-height: 1; padding: 1px 8px; }
+  .chat-clear:hover, .chat-close:hover { background: #f5f5f7; color: #1d1d1f; }
+  .chat-history {
+    flex: 1; overflow-y: auto; padding: 12px 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .chat-empty { color: #8e8e93; font-size: 13px; font-style: italic; padding: 8px 0 4px; }
+  .chat-suggestions { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .chat-suggestion {
+    font: inherit; font-size: 12px; padding: 6px 11px; border-radius: 14px;
+    border: 1px solid #e6e4f0; background: #f5f5fb; cursor: pointer; color: #5e3aa6;
+    text-align: left;
+  }
+  .chat-suggestion:hover { background: #eee9f7; }
+  .chat-msg { display: flex; flex-direction: column; gap: 4px; max-width: 90%; }
+  .chat-msg.user { align-self: flex-end; }
+  .chat-msg.assistant { align-self: flex-start; }
+  .chat-msg .bubble {
+    padding: 9px 13px; border-radius: 14px; font-size: 13px; line-height: 1.5;
+    white-space: pre-wrap; word-wrap: break-word;
+  }
+  .chat-msg.user .bubble { background: #5e3aa6; color: #fff; border-bottom-right-radius: 4px; }
+  .chat-msg.assistant .bubble {
+    background: #f5f5f7; color: #1d1d1f; border-bottom-left-radius: 4px;
+  }
+  .chat-msg.thinking .bubble { color: #8e8e93; font-style: italic; }
+  .chat-input-row {
+    display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid #ececec; background: #fff;
+  }
+  .chat-input {
+    flex: 1; font: inherit; font-size: 13px; padding: 8px 12px;
+    border: 1px solid #d2d2d7; border-radius: 8px; outline: none;
+  }
+  .chat-input:focus { border-color: #5e3aa6; }
+  .chat-send {
+    font: inherit; font-size: 13px; font-weight: 500; padding: 8px 14px; border-radius: 8px;
+    border: 1px solid #5e3aa6; background: #5e3aa6; color: #fff; cursor: pointer;
+  }
+  .chat-send:hover { background: #4d2e8a; }
+  .chat-send:disabled { opacity: 0.5; cursor: default; }
+  .chat-action-card {
+    align-self: stretch; border: 1.5px solid #f4d4a8; background: #fff7e6;
+    border-radius: 12px; padding: 11px 13px; font-size: 12.5px;
+  }
+  .chat-action-card .ac-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    color: #a05a00; margin-bottom: 5px;
+  }
+  .chat-action-card .ac-title { font-weight: 600; color: #1d1d1f; margin-bottom: 4px; }
+  .chat-action-card .ac-details {
+    background: #fff; border: 1px solid #f4d4a8; border-radius: 7px;
+    padding: 7px 10px; font-size: 11.5px; color: #6e6e73; margin: 6px 0;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .chat-action-card .ac-buttons { display: flex; gap: 8px; margin-top: 8px; }
+  .chat-action-card .ac-confirm {
+    font: inherit; font-size: 12px; padding: 5px 12px; border-radius: 6px;
+    border: 1px solid #1f7a3a; background: #1f7a3a; color: #fff; cursor: pointer; font-weight: 500;
+  }
+  .chat-action-card .ac-confirm:hover { background: #185f2c; }
+  .chat-action-card .ac-cancel {
+    font: inherit; font-size: 12px; padding: 5px 12px; border-radius: 6px;
+    border: 1px solid #d2d2d7; background: #fff; cursor: pointer; color: #1d1d1f;
+  }
+  .chat-action-card .ac-cancel:hover { background: #f5f5f7; }
+  .chat-action-card.done {
+    border-color: #c5e7d0; background: #e6f4ea;
+  }
+  .chat-action-card.done .ac-label { color: #1f7a3a; }
+  .chat-action-card.error {
+    border-color: #f4cccc; background: #fff4f4;
+  }
+  .chat-action-card.error .ac-label { color: #b00020; }
+  @media (max-width: 700px) {
+    .tl-metrics { grid-template-columns: repeat(2, 1fr); }
+  }
+  .card {
+    display: block; padding: 12px 14px; border: 1px solid #ececec; border-radius: 10px;
+    margin-bottom: 8px; text-decoration: none; color: inherit; background: #fff; position: relative;
+  }
+  .card:hover { border-color: #d2d2d7; background: #fafafa; }
+  .card.urgent { border-left: 3px solid #d4314a; }
+  .card .row1 { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .who { font-weight: 600; }
+  .when { color: #8e8e93; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+  .summary { color: #3a3a3c; margin-top: 4px; }
+  .reason { color: #b00020; font-size: 12px; margin-top: 4px; font-weight: 500; }
+  .meta-row { color: #6e6e73; font-size: 12px; margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .tag {
+    display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px;
+    background: #f0f0f3; color: #6e6e73;
+  }
+  .tag.dm { background: #e8f1ff; color: #0a5ed3; }
+  .tag.channel { background: #eef7ee; color: #1f7a3a; }
+  .tag.mention { background: #fff4e0; color: #a05a00; }
+  .tag.data { background: #f3eaff; color: #5e3aa6; }
+  .tag.email { background: #fbe9eb; color: #a8324a; }
+  .tag.slack { background: #e8f1ff; color: #0a5ed3; }
+  .tag.cowork { background: #fff7e6; color: #8a5a00; }
+  .src-icon { display: inline-block; margin-right: 6px; font-size: 11px; }
+  .ignore-btn {
+    position: absolute; top: 8px; right: 8px; font-size: 11px; color: #8e8e93;
+    background: transparent; border: 1px solid #ececec; border-radius: 6px;
+    padding: 2px 8px; cursor: pointer; opacity: 0; transition: opacity .12s;
+  }
+  .card:hover .ignore-btn { opacity: 1; }
+  .ignore-btn:hover { color: #1d1d1f; border-color: #d2d2d7; background: #fff; }
+  .empty { color: #8e8e93; font-style: italic; padding: 8px 2px; font-size: 13px; }
+  .skeleton {
+    border: 1px solid #ececec; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
+    background: linear-gradient(90deg, #f5f5f7, #fafafa, #f5f5f7);
+    background-size: 200% 100%; animation: shimmer 1.4s infinite; height: 56px;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .err { color: #b00020; background: #fff4f4; border: 1px solid #f4cccc; border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+  .footnote { color: #8e8e93; font-size: 11px; margin-top: 22px; }
+  .meeting {
+    padding: 11px 14px; border: 1px solid #ececec; border-radius: 10px; margin-bottom: 8px; background: #fff;
+  }
+  .meeting .title { font-weight: 600; color: #1d1d1f; }
+  .meeting .when { color: #6e6e73; font-size: 12px; }
+  .meeting .summary, .meeting .agenda { color: #3a3a3c; margin-top: 6px; font-size: 13px; }
+  .meeting .agenda-label { font-size: 11px; font-weight: 600; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 8px; }
+  .meeting .links { margin-top: 6px; font-size: 12px; }
+  .meeting .links a { color: #0a5ed3; text-decoration: none; margin-right: 12px; }
+  .meeting .links a:hover { text-decoration: underline; }
+  .meeting .attendees { color: #6e6e73; font-size: 12px; margin-top: 2px; }
+  .linear-card {
+    padding: 10px 12px; border: 1px solid #ececec; border-radius: 8px; margin-bottom: 6px; background: #fff;
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: start;
+  }
+  .linear-card .title-row {
+    grid-column: 1; display: flex; align-items: baseline; gap: 8px;
+    font-weight: 600; color: #1d1d1f; font-size: 13.5px; line-height: 1.35;
+  }
+  .linear-card .body {
+    grid-column: 1 / -1; color: #5a5a5f; font-size: 12.5px; line-height: 1.4;
+    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+  .linear-card .src { grid-column: 1 / -1; color: #8e8e93; font-size: 11px; }
+  .linear-card .src a { color: #0a5ed3; text-decoration: none; }
+  .linear-card .actions { grid-column: 2; grid-row: 1; display: flex; gap: 6px; flex-shrink: 0; }
+  .linear-card .actions .btn { font-size: 11px; padding: 3px 9px; }
+  .ticket-row {
+    display: grid; grid-template-columns: 80px 1fr auto auto auto auto; gap: 10px;
+    align-items: center; padding: 8px 12px; border: 1px solid #ececec;
+    border-radius: 7px; margin-bottom: 4px; background: #fff;
+    color: inherit; font-size: 13px; line-height: 1.3; cursor: pointer;
+  }
+  .ticket-row:hover { border-color: #d2d2d7; background: #fafafa; }
+  .ticket-row .id {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 11px; font-weight: 600; color: #6e6e73; letter-spacing: 0.02em;
+  }
+  .ticket-row .ttitle { color: #1d1d1f; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ticket-row .pri {
+    font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 9px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .ticket-row .pri.urgent { background: #ffe4e4; color: #b00020; }
+  .ticket-row .pri.high { background: #fff4e0; color: #a05a00; }
+  .ticket-row .pri.medium { background: #e8f1ff; color: #0a5ed3; }
+  .ticket-row .pri.low { background: #f0f0f3; color: #6e6e73; }
+  .ticket-row .pri.none { display: none; }
+  .ticket-row .status {
+    font-size: 11px; color: #6e6e73; padding: 2px 7px; border-radius: 9px;
+    background: #f0f0f3; white-space: nowrap;
+  }
+  .ticket-row .status.started { background: #e6f4ea; color: #1f7a3a; }
+  .ticket-row .status.unstarted { background: #e8f1ff; color: #0a5ed3; }
+  .ticket-row .status.backlog { background: #f0f0f3; color: #6e6e73; }
+  .ticket-row .ext { color: #c7c7cc; font-size: 12px; }
+  .ticket-row:hover .ext { color: #0a5ed3; }
+  .ticket-team { font-size: 10px; color: #8e8e93; margin-left: 4px; }
+  .ticket-complete {
+    font: inherit; font-size: 11px; padding: 3px 9px; border-radius: 5px;
+    border: 1px solid #d2d2d7; background: #fff; cursor: pointer; color: #1f7a3a;
+    font-weight: 500;
+  }
+  .ticket-complete:hover { background: #e6f4ea; border-color: #1f7a3a; }
+  .ticket-complete:disabled { opacity: 0.6; cursor: default; }
+  .btn {
+    font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 6px; border: 1px solid #d2d2d7;
+    background: #fff; cursor: pointer; color: #1d1d1f;
+  }
+  .btn:hover { background: #f5f5f7; }
+  .btn.primary { background: #5e3aa6; color: #fff; border-color: #5e3aa6; }
+  .btn.primary:hover { background: #4d2e8a; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn .check { color: #1f7a3a; font-weight: 600; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .week-summary {
+    margin: 18px 0 4px; padding: 16px 18px;
+    background: linear-gradient(180deg, #fafaff 0%, #f5f5fb 100%);
+    border: 1px solid #e6e4f0; border-radius: 12px;
+  }
+  .week-summary .ws-label {
+    font-size: 11px; font-weight: 600; color: #5e3aa6;
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;
+  }
+  .week-summary .ws-block { margin-bottom: 10px; }
+  .week-summary .ws-block:last-child { margin-bottom: 0; }
+  .week-summary .ws-heading {
+    font-size: 11px; font-weight: 600; color: #6e6e73;
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px;
+  }
+  .week-summary .ws-body { color: #1d1d1f; font-size: 13.5px; line-height: 1.55; }
+  .week-summary .ws-skel {
+    height: 14px; margin: 6px 0; border-radius: 4px;
+    background: linear-gradient(90deg, #ecebf3, #f5f4fb, #ecebf3);
+    background-size: 200% 100%; animation: shimmer 1.4s infinite;
+  }
+  .week-summary .ws-skel.short { width: 60%; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Daily Hub</h1>
+    <div class="header-controls">
+      <label class="open-in-apps" title="Convert Slack and Linear links to slack:// and linear:// deep links so clicks open the desktop apps directly. Requires the apps to be installed.">
+        <input type="checkbox" id="open-in-apps">
+        <span>Open in apps</span>
+      </label>
+      <div class="team-picker">
+        <span>Linear team:</span>
+        <select id="team-select"><option>Loading…</option></select>
+      </div>
+    </div>
+  </header>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+
+  <div class="tab-content" data-week="last">
+    <div class="week-summary" id="last-summary">
+      <div class="ws-label">Week recap</div>
+      <div class="ws-skel"></div><div class="ws-skel"></div><div class="ws-skel short"></div>
+    </div>
+    <div class="freshness" id="last-freshness"></div>
+    <h2>Action items — open <span class="count" id="last-linear-count">…</span></h2>
+    <div id="last-linear"><div class="empty">Open this tab to load.</div></div>
+    <h2>My open Linear tickets <span class="count" id="last-tickets-count">…</span></h2>
+    <div id="last-tickets"><div class="skeleton"></div></div>
+    <h2>Completed (untracked) <span class="count" id="last-done-count">…</span></h2>
+    <div id="last-done"><div class="empty">Open this tab to load.</div></div>
+    <h2>Conversations <span class="count" id="last-convo-count">…</span></h2>
+    <div id="last-convos"><div class="skeleton"></div><div class="skeleton"></div></div>
+    <h2>Email threads <span class="count" id="last-email-count">…</span></h2>
+    <div id="last-emails"><div class="skeleton"></div></div>
+    <h2>Meetings <span class="count" id="last-meet-count">…</span></h2>
+    <div id="last-meetings"><div class="skeleton"></div></div>
+  </div>
+
+  <div class="tab-content" data-week="this">
+    <div class="week-summary" id="this-summary">
+      <div class="ws-label">Week so far</div>
+      <div class="ws-skel"></div><div class="ws-skel"></div><div class="ws-skel short"></div>
+    </div>
+    <div class="freshness" id="this-freshness"></div>
+    <div class="memory-block" id="this-memory">
+      <div class="memory-section" id="ms-workstreams">
+        <div class="ms-label">Active workstreams <span class="ms-source">~/optio/memory.md</span></div>
+        <div class="ms-list ms-empty">—</div>
+      </div>
+      <div class="memory-section" id="ms-decisions">
+        <div class="ms-label">Recent decisions <span class="ms-source">~/optio/memory.md</span></div>
+        <div class="ms-list ms-empty">—</div>
+      </div>
+    </div>
+    <div class="next-action-stack" id="this-next-actions" style="display:none"></div>
+    <h2 class="urgent">Needs reply <span class="count" id="this-urgent-count">…</span></h2>
+    <div id="this-urgent"><div class="skeleton"></div></div>
+    <h2>Action items — open <span class="count" id="this-linear-count">…</span></h2>
+    <div id="this-linear"><div class="skeleton"></div></div>
+    <h2>My open Linear tickets <span class="count" id="this-tickets-count">…</span></h2>
+    <div id="this-tickets"><div class="skeleton"></div></div>
+    <h2>Completed (untracked) <span class="count" id="this-done-count">…</span></h2>
+    <div id="this-done"><div class="skeleton"></div></div>
+    <h2>Conversations <span class="count" id="this-convo-count">…</span></h2>
+    <div id="this-convos"><div class="skeleton"></div><div class="skeleton"></div></div>
+    <h2>Email threads <span class="count" id="this-email-count">…</span></h2>
+    <div id="this-emails"><div class="skeleton"></div></div>
+    <h2>Past meetings <span class="count" id="this-past-count">…</span></h2>
+    <div id="this-past"><div class="skeleton"></div></div>
+    <h2>Upcoming meetings <span class="count" id="this-up-count">…</span></h2>
+    <div id="this-upcoming"><div class="skeleton"></div></div>
+  </div>
+
+  <div class="tab-content" data-week="next">
+    <div class="week-summary" id="next-summary">
+      <div class="ws-label">Looking ahead</div>
+      <div class="ws-skel"></div><div class="ws-skel"></div><div class="ws-skel short"></div>
+    </div>
+    <div class="freshness" id="next-freshness"></div>
+    <h2>Upcoming meetings <span class="count" id="next-up-count">…</span></h2>
+    <div id="next-upcoming"><div class="empty">Open this tab to load.</div></div>
+  </div>
+
+  <div class="tab-content" data-week="timeline">
+    <div class="tl-toolbar">
+      <div class="tl-range-selector" id="tl-range">
+        <button class="tl-range-btn" data-range="last">Last week</button>
+        <button class="tl-range-btn active" data-range="this">This week</button>
+        <button class="tl-range-btn" data-range="14d">Last 14 days</button>
+        <button class="tl-range-btn" data-range="30d">Last 30 days</button>
+        <button class="tl-range-btn" data-range="90d">Last 90 days</button>
+      </div>
+      <div class="tl-toolbar-right">
+        <button class="tl-backfill-btn" id="tl-backfill" title="Fetch and store the last 8 weeks of data so the longer ranges have content">Backfill 8 weeks</button>
+        <div class="tl-legend">
+          <span class="tl-leg-dot slack"></span>Slack
+          <span class="tl-leg-dot email"></span>Email
+          <span class="tl-leg-dot meeting"></span>Meeting
+          <span class="tl-leg-dot linear"></span>Linear
+        </div>
+      </div>
+    </div>
+    <div class="tl-metrics" id="tl-metrics"></div>
+    <div class="tl-frame" id="tl-frame">
+      <div class="tl-grid">
+        <div class="tl-lane-labels">
+          <div class="tl-lane-label">Slack</div>
+          <div class="tl-lane-label">Email</div>
+          <div class="tl-lane-label">Meetings</div>
+          <div class="tl-lane-label">Linear</div>
+        </div>
+        <div class="tl-canvas-wrap">
+          <div class="tl-canvas" id="tl-canvas">
+            <div class="tl-lane" data-lane="slack"></div>
+            <div class="tl-lane" data-lane="email"></div>
+            <div class="tl-lane" data-lane="meeting"></div>
+            <div class="tl-lane" data-lane="linear"></div>
+            <div class="tl-today-line" id="tl-today" style="display:none"><div class="tl-today-label">TODAY</div></div>
+          </div>
+          <div class="tl-day-axis" id="tl-day-axis"></div>
+        </div>
+      </div>
+    </div>
+    <div class="tl-detail" id="tl-detail">
+      <span class="tl-detail-empty">Click any event on the timeline to see details.</span>
+    </div>
+  </div>
+
+  <div class="cache-info" id="cache-info">
+    <span id="cache-status">Loading…</span>
+    <a id="clear-cache">Clear cache</a>
+  </div>
+</div>
+
+<button class="chat-toggle" id="chat-toggle" title="Ask the Daily Hub">
+  <span class="chat-toggle-icon">💬</span>
+  <span class="chat-toggle-label">Ask</span>
+</button>
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-header">
+    <span class="chat-title">Ask the Daily Hub</span>
+    <div class="chat-header-actions">
+      <button class="chat-clear" id="chat-clear" title="Clear conversation">Clear</button>
+      <button class="chat-close" id="chat-close" title="Close">×</button>
+    </div>
+  </div>
+  <div class="chat-history" id="chat-history">
+    <div class="chat-suggestions" id="chat-suggestions">
+      <div class="chat-empty">Ask me anything about your week.</div>
+      <button class="chat-suggestion" data-q="What's the most important thing for me to work on right now?">What's most important right now?</button>
+      <button class="chat-suggestion" data-q="What did I commit to this week that I haven't done yet?">What's pending from this week?</button>
+      <button class="chat-suggestion" data-q="Which open Linear tickets are stale or stuck?">What tickets are stuck?</button>
+      <button class="chat-suggestion" data-q="Who am I overdue replying to?">Who am I overdue with?</button>
+      <button class="chat-suggestion" data-q="What's the prep work I should do before tomorrow's meetings?">Prep for tomorrow's meetings?</button>
+    </div>
+  </div>
+  <form class="chat-input-row" id="chat-input-row">
+    <input type="text" class="chat-input" id="chat-input" placeholder="Ask a question…" autocomplete="off">
+    <button type="submit" class="chat-send">Send</button>
+  </form>
+</div>
+
+<script type="application/json" id="optio-memory">
+{
+  "last_updated": "2026-05-11T17:00:00-04:00",
+  "right_now": [
+    "HubSpot Revenue Schedule — classifying every event with HubSpot deal IDs. Active iteration with Magnus + Benjamin.",
+    "OFS data model + reconciliation — Friday Håkon revenue-reporting sync is the near-term milestone.",
+    "BI tool rollout — Omni + Sigma dual POC running; finance-approval deck owed to Knut on his 5/13 return.",
+    "MonetizeNow / invoicing modernization — business case (DATA-1142) in Backlog.",
+    "Investec replication — Fivetran abandoned; path needs re-scoping."
+  ],
+  "active_workstreams": [
+    {"name": "BI tool evaluation", "slug": "bi-tool-eval", "status": "Dual POC running; decision target end-May / early-June", "next_action": "Send finance approval deck (DATA-1127) to Knut on his 5/13 return.", "ref": "refs/bi-tool-eval.md", "last_touched": "2026-05-11"},
+    {"name": "HubSpot Revenue Schedule", "slug": "hubspot-revenue-schedule", "status": "Extending coverage by client batch", "next_action": "Process next batch of clients with Magnus + Benjamin.", "ref": "refs/hubspot-revenue-schedule.md", "last_touched": "2026-05-06"},
+    {"name": "OFS platform", "slug": "ofs-platform", "status": "Data model + reporting plan landing this week", "next_action": "Friday 5/8 Håkon revenue-reporting sync; bring OFS pre-read.", "ref": "refs/ofs-platform.md", "last_touched": "2026-05-05"},
+    {"name": "Investec replication", "slug": "investec-replication", "status": "Fivetran abandoned 2026-05-08; re-scoping needed", "next_action": "Re-scope ingestion path with Wlodek; decide direct API vs alternate ETL.", "ref": "refs/investec-replication.md", "last_touched": "2026-05-08"},
+    {"name": "PowerOffice → BigQuery (v2 API)", "slug": "bigquery-patterns", "status": "v2 endpoint clarified; admin perms granted", "next_action": "Build v2 ingestion pipeline; coordinate with Magnus.", "ref": "refs/bigquery-patterns.md", "last_touched": "2026-05-06"}
+  ],
+  "recent_decisions": [
+    {"date": "2026-05-11", "workstream": "bi-tool-eval",         "text": "Sigma POC running alongside Omni POC (dual POC). Decision target end-May / early-June. Sigma Y1: $35K platform + 6mo unlimited licenses, ~$46,880 Y1."},
+    {"date": "2026-05-11", "workstream": "bi-tool-eval",         "text": "FP&A tool purchase (Abacum) deferred ~6 months pending data-quality work."},
+    {"date": "2026-05-08", "workstream": "investec-replication", "text": "Fivetran abandoned at Optio. Blockers: no pre-built PowerOffice connector + 3-month sub-processor approval clause. Investec SFTP path needs re-scoping."},
+    {"date": "2026-05-05", "workstream": "bi-tool-eval",         "text": "Omni selected as primary BI tool over Sigma. Sigma kept warm via Friday sync with Deji as reality check.", "superseded": "2026-05-11"},
+    {"date": "2026-05-05", "workstream": "bi-tool-eval",         "text": "Abacum held as follow-on, contingent on a 2-week Omni PoC revealing FP&A planning gaps.", "superseded": "2026-05-11"},
+    {"date": "2026-05-05", "workstream": "ofs-platform",         "text": "Internal reconciliation systems stay in-house; no third-party BI for that workflow."},
+    {"date": "2026-05-05", "workstream": "ofs-platform",         "text": "Pursue Omni as third-party connector partner to reduce pipeline build time."},
+    {"date": "2026-05-04", "workstream": "bigquery-patterns",    "text": "Datastream stays in place for now (not replaced this round)."},
+    {"date": "2026-05",    "workstream": "investec-replication", "text": "Investec replication via Fivetran SFTP rather than direct API.", "superseded": "2026-05-08"}
+  ],
+  "exec_stakeholders": [
+    {"name": "Michael Magnussen", "aliases": ["Michael Magnussen", "Michael Løiten Magnussen"]},
+    {"name": "Daniel Kelly",      "aliases": ["Daniel Kelly", "Dan Kelly"]},
+    {"name": "Knut Finstad",      "aliases": ["Knut Finstad", "Knut Dagfinn Finstad"]},
+    {"name": "Benjamin Roach",    "aliases": ["Benjamin Roach", "Benjamin"]}
+  ]
+}
+</script>
+<script>
+const ME = "U0AQU1S4GF9";
+const ME_NAME = "Dan Ben-Atar";
+const ME_EMAIL = "daniel.ben-atar@optioincentives.com";
+const SLACK_SEARCH = "mcp__6e43679b-8a0c-4670-b7e5-e8fdb8cb6991__slack_search_public_and_private";
+const CAL_LIST = "mcp__51284470-dcb3-453b-bcef-aa210156bb6b__list_events";
+const CAL_CREATE = "mcp__51284470-dcb3-453b-bcef-aa210156bb6b__create_event";
+const DRIVE_RECENT = "mcp__10bf87a1-2f7e-41b0-8861-1f10b53ee2ac__list_recent_files";
+const GMAIL_SEARCH = "mcp__6ad96533-53be-4742-aa34-c62c6d248e23__search_threads";
+const LINEAR_TEAMS = "mcp__c8b499e2-9692-442e-8c7a-d6a24aa4a615__list_teams";
+const LINEAR_SAVE = "mcp__c8b499e2-9692-442e-8c7a-d6a24aa4a615__save_issue";
+const LINEAR_ISSUES = "mcp__c8b499e2-9692-442e-8c7a-d6a24aa4a615__list_issues";
+const SESSIONS_LIST = "mcp__session_info__list_sessions";
+const SESSIONS_READ = "mcp__session_info__read_transcript";
+
+// Email noise filters
+const NOISE_SENDER_RE = /no-?reply|^notifications@|google[\s-]calendar|calendar-noreply|gemini-notes@|slackhq\.com|notebooklm-noreply|^support@|^marketing@|^billing@|@email\.|^team@|do[-_]not[-_]reply/i;
+const CAL_AUTO_SUBJECT_RE = /^(Accepted|Declined|Tentative|Invitation|Updated invitation|Canceled event|Cancelled event|Notes:):/i;
+
+// Action phrase pre-filter — keeps a thread/email "interesting" if it contains any of these.
+// Used to drop low-signal content BEFORE the LLM call. Generous on purpose (false positives are fine, false negatives are not).
+const ASK_RE = /\b(can you|could you|would you|any chance|mind if|I need|we need from you|could use your|thoughts on|what do you think|your take|ETA on|where are we on|any update on|follow up on|circle back|when can you|by (EOD|EOW|Friday|Monday|Tuesday|Wednesday|Thursday|tomorrow|today|the end))\b/i;
+const COMMITMENT_RE = /\b(I'?ll|I will|let me|give me until|I owe you|I'?ll get back|happy to take|happy to own|I can take that|I can own|by (EOD|EOW|Friday|Monday|tomorrow|today)|loop in)\b/i;
+const COMPLETION_RE = /\b(sent|shared|pushed|merged|deployed|scheduled|booked|set up|wrote up|pulled|created|added|linked|uploaded|signed off|reviewed|finished|closed out|aligned with|followed up with|met with|shipped|done\b|just (finished|sent|booked|shipped|set up|pulled|shared))\b/i;
+const ACTION_RE = new RegExp(`(${ASK_RE.source})|(${COMMITMENT_RE.source})|(${COMPLETION_RE.source})|\\?`, "i");
+
+const TEAM_KEY = "wd:team-id";
+const TEAM_EXPLICIT_KEY = "wd:team-explicit";
+const ACTIVE_TAB_KEY = "wd:active-tab";
+const IGNORED_KEY = "wd:ignored";
+const DISMISSED_KEY = "wd:dismissed-actions";
+const CREATED_KEY = "wd:created-actions";
+const DISMISSED_DONE_KEY = "wd:dismissed-done";
+const LOGGED_DONE_KEY = "wd:logged-done";
+const EXPANDED_KEY = "wd:expanded-sections";  // sections COLLAPSED by default; expanded ones stored here
+const OPEN_IN_APPS_KEY = "wd:open-in-apps";
+const NEXT_DISMISSED_KEY = "wd:next-dismissed";
+
+// ============== utility ==============
+function escapeHtml(s){return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
+function stripHtml(s) { return (s || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim(); }
+function relTime(ts) {
+  const d = new Date(ts * 1000);
+  const diffH = (Date.now() - d.getTime()) / 3600000;
+  if (diffH < 1) return Math.max(1, Math.round(diffH * 60)) + "m ago";
+  if (diffH < 24) return Math.round(diffH) + "h ago";
+  return Math.round(diffH / 24) + "d ago";
+}
+function fmtDateRange(start, end) {
+  const fmt = d => d.toLocaleDateString(undefined, { month:"short", day:"numeric" });
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+function fmtMeetingWhen(d) {
+  return d.toLocaleString(undefined, { weekday:"short", month:"short", day:"numeric", hour:"numeric", minute:"2-digit" });
+}
+function fmtMeetingDay(d) {
+  return d.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" });
+}
+
+// Monday-anchored week range; offset 0 = this week, -1 = last, +1 = next
+function weekRange(offset) {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun..6=Sat
+  const monOffset = (day === 0 ? -6 : 1 - day);
+  const monday = new Date(now);
+  monday.setHours(0,0,0,0);
+  monday.setDate(now.getDate() + monOffset + (offset * 7));
+  const sundayEnd = new Date(monday);
+  sundayEnd.setDate(monday.getDate() + 7);
+  sundayEnd.setMilliseconds(-1);
+  return { start: monday, end: sundayEnd };
+}
+
+function isPastWeek(r) { return r.end.getTime() < Date.now(); }
+function isFutureWeek(r) { return r.start.getTime() > Date.now(); }
+
+// localStorage helpers
+function lsGetSet(key) { try { return new Set(JSON.parse(localStorage.getItem(key) || "[]")); } catch { return new Set(); } }
+function lsSetSet(key, s) { localStorage.setItem(key, JSON.stringify([...s])); }
+function lsGetObj(key) { try { return JSON.parse(localStorage.getItem(key) || "{}"); } catch { return {}; } }
+function lsSetObj(key, o) { localStorage.setItem(key, JSON.stringify(o)); }
+
+// ============== Cache layer ==============
+const CACHE_PREFIX = "wd:c:";
+const CACHE_VERSION = 5;  // bumped when prompt or payload shape changes
+
+function cacheGet(name, maxAgeMs) {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + name);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (o.v !== CACHE_VERSION) return null;
+    const age = Date.now() - o.ts;
+    if (age > maxAgeMs) return null;
+    return { data: o.data, ts: o.ts, age };
+  } catch { return null; }
+}
+function cacheSet(name, data) {
+  const payload = JSON.stringify({ v: CACHE_VERSION, ts: Date.now(), data });
+  try { localStorage.setItem(CACHE_PREFIX + name, payload); }
+  catch (e) {
+    cacheEvictOldest(5);
+    try { localStorage.setItem(CACHE_PREFIX + name, payload); } catch {}
+  }
+}
+function cacheKeys(prefix = "") {
+  const out = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(CACHE_PREFIX + prefix)) out.push(k);
+  }
+  return out;
+}
+function cacheClear(prefix = "") {
+  for (const k of cacheKeys(prefix)) localStorage.removeItem(k);
+}
+function cacheTotalBytes() {
+  let n = 0;
+  for (const k of cacheKeys()) n += (localStorage.getItem(k) || "").length + k.length;
+  return n;
+}
+function cacheEvictOldest(n = 1) {
+  const entries = cacheKeys().map(k => {
+    try { return { k, ts: JSON.parse(localStorage.getItem(k)).ts }; }
+    catch { return { k, ts: 0 }; }
+  });
+  entries.sort((a, b) => a.ts - b.ts);
+  for (const e of entries.slice(0, n)) localStorage.removeItem(e.k);
+}
+async function cachedFetch(name, maxAgeMs, fetchFn) {
+  const hit = cacheGet(name, maxAgeMs);
+  if (hit) return hit.data;
+  const fresh = await fetchFn();
+  if (fresh != null) cacheSet(name, fresh);
+  return fresh;
+}
+// djb2 hash for stable keys
+function djb2(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h) + s.charCodeAt(i);
+  return (h >>> 0).toString(36);
+}
+
+// ============== IndexedDB persistence ==============
+// Two stores:
+//  - events: flat dated log (id, timestamp, source, payload). Queried by date range.
+//  - snapshots: per-week raw blobs by source (key: "<source>:<isoStartDate>").
+const IDB_NAME = "DailyHub";
+const IDB_VERSION = 2;
+let _idbPromise = null;
+function idbOpen() {
+  if (_idbPromise) return _idbPromise;
+  if (!("indexedDB" in window)) return Promise.resolve(null);
+  _idbPromise = new Promise((resolve) => {
+    const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+    req.onerror = () => resolve(null);
+    req.onsuccess = () => resolve(req.result);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains("events")) {
+        const s = db.createObjectStore("events", { keyPath: "id" });
+        s.createIndex("timestamp", "timestamp");
+        s.createIndex("source", "source");
+      }
+      if (!db.objectStoreNames.contains("snapshots")) {
+        db.createObjectStore("snapshots", { keyPath: "key" });
+      }
+      if (!db.objectStoreNames.contains("weekly_metrics")) {
+        db.createObjectStore("weekly_metrics", { keyPath: "week" });
+      }
+    };
+  });
+  return _idbPromise;
+}
+async function idbGetAllMetrics() {
+  const db = await idbOpen();
+  if (!db) return [];
+  return new Promise((resolve) => {
+    const tx = db.transaction("weekly_metrics", "readonly");
+    const req = tx.objectStore("weekly_metrics").getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  });
+}
+async function idbPutMany(storeName, items) {
+  const db = await idbOpen();
+  if (!db || !items?.length) return;
+  return new Promise((resolve) => {
+    const tx = db.transaction(storeName, "readwrite");
+    const s = tx.objectStore(storeName);
+    for (const it of items) { try { s.put(it); } catch {} }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+    tx.onabort = () => resolve();
+  });
+}
+async function idbGetEventsByRange(start, end) {
+  const db = await idbOpen();
+  if (!db) return [];
+  return new Promise((resolve) => {
+    const tx = db.transaction("events", "readonly");
+    const idx = tx.objectStore("events").index("timestamp");
+    const range = IDBKeyRange.bound(start.getTime(), end.getTime());
+    const req = idx.getAll(range);
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  });
+}
+async function idbCountEvents() {
+  const db = await idbOpen();
+  if (!db) return { count: 0, oldest: null };
+  return new Promise((resolve) => {
+    const tx = db.transaction("events", "readonly");
+    const store = tx.objectStore("events");
+    const countReq = store.count();
+    const idx = store.index("timestamp");
+    const cursorReq = idx.openCursor();
+    let oldest = null;
+    cursorReq.onsuccess = (e) => {
+      const c = e.target.result;
+      if (c) oldest = c.value.timestamp;
+    };
+    tx.oncomplete = () => resolve({ count: countReq.result || 0, oldest });
+    tx.onerror = () => resolve({ count: 0, oldest });
+  });
+}
+async function idbClearAll() {
+  const db = await idbOpen();
+  if (!db) return;
+  return new Promise((resolve) => {
+    const tx = db.transaction(["events", "snapshots"], "readwrite");
+    tx.objectStore("events").clear();
+    tx.objectStore("snapshots").clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+  });
+}
+
+// Compute per-week metrics from normalized data — stored in IDB so the dashboard can aggregate across ranges.
+function computeWeeklyMetrics(weekStart, { threads, emails, events: cal, tickets }) {
+  const wkStart = weekStart.getTime();
+  const wkEnd = wkStart + 7 * 24 * 3600_000;
+  // Slack — count per-message activity within the week
+  let slackSent = 0, slackReceived = 0;
+  for (const t of (threads || [])) {
+    for (const m of (t.messages || [])) {
+      const ts = (m.ts || 0) * 1000;
+      if (ts < wkStart || ts >= wkEnd) continue;
+      if (m.fromId === ME) slackSent++; else slackReceived++;
+    }
+  }
+  // Email — count per-message activity within the week
+  let emailSent = 0, emailReceived = 0;
+  for (const e of (emails || [])) {
+    for (const m of (e.messages || [])) {
+      const ts = (m.ts || 0) * 1000;
+      if (ts < wkStart || ts >= wkEnd) continue;
+      if (m.isMe) emailSent++; else emailReceived++;
+    }
+  }
+  // Meetings
+  let meetingsTotal = 0, meetingsDeclined = 0, meetingsByMe = 0, meetingsHours = 0;
+  for (const ev of (cal || [])) {
+    const start = eventStart(ev);
+    if (!start) continue;
+    if (start.getTime() < wkStart || start.getTime() >= wkEnd) continue;
+    meetingsTotal++;
+    const me = (ev.attendees || []).find(a => a.self);
+    if (me?.responseStatus === "declined") meetingsDeclined++;
+    if (ev.creator?.self) {
+      const created = ev.created ? new Date(ev.created).getTime() : 0;
+      if (created >= wkStart && created < wkEnd) meetingsByMe++;
+    }
+    const endRaw = ev.end?.dateTime || ev.end?.date;
+    if (endRaw) {
+      const dur = (new Date(endRaw).getTime() - start.getTime()) / 3600_000;
+      if (dur > 0 && dur < 24) meetingsHours += dur;
+    }
+  }
+  // Linear — created/completed within the week (from the global tickets list)
+  let linearCreated = 0, linearCompleted = 0;
+  for (const t of (tickets || [])) {
+    if (t.createdAt) {
+      const ts = new Date(t.createdAt).getTime();
+      if (ts >= wkStart && ts < wkEnd) linearCreated++;
+    }
+    if (t.completedAt) {
+      const ts = new Date(t.completedAt).getTime();
+      if (ts >= wkStart && ts < wkEnd) linearCompleted++;
+    }
+  }
+  return {
+    week: weekStart.toISOString().slice(0, 10),
+    weekStart: wkStart, weekEnd: wkEnd,
+    slack_sent: slackSent, slack_received: slackReceived,
+    email_sent: emailSent, email_received: emailReceived,
+    meetings_total: meetingsTotal, meetings_declined: meetingsDeclined,
+    meetings_by_me: meetingsByMe, meetings_hours: Math.round(meetingsHours * 10) / 10,
+    linear_created: linearCreated, linear_completed: linearCompleted,
+    computed_at: Date.now()
+  };
+}
+
+async function persistMetricsToIDB(metrics) {
+  if (!metrics) return;
+  await idbPutMany("weekly_metrics", [metrics]);
+}
+
+// Build flat events from this week's normalized data and persist to IDB.
+async function persistEventsToIDB({ threads, emails, events: cal, tickets }) {
+  const events = [];
+  for (const t of (threads || [])) {
+    if (!t.latestTs || !t.latestPermalink) continue;
+    const ts = Math.round(t.latestTs * 1000);
+    events.push({
+      id: `slack:${t.channelId}:${t.latestTs}`,
+      source: "slack",
+      timestamp: ts,
+      title: displayWho(t),
+      subject: "",
+      body: (t.latestText || "").slice(0, 800),
+      url: t.latestPermalink,
+      people: [t.latestFrom].filter(Boolean)
+    });
+  }
+  for (const e of (emails || [])) {
+    if (!e.latestTs || !e.permalink) continue;
+    const ts = Math.round(e.latestTs * 1000);
+    events.push({
+      id: `email:${e.threadId}:${e.latestTs}`,
+      source: "email",
+      timestamp: ts,
+      title: emailDisplayWho(e),
+      subject: e.subject || "",
+      body: (e.latestSnippet || "").slice(0, 800),
+      url: e.permalink,
+      people: e.others || []
+    });
+  }
+  for (const ev of (cal || [])) {
+    const start = eventStart(ev);
+    if (!start) continue;
+    const endRaw = ev.end?.dateTime || ev.end?.date;
+    const endDate = endRaw ? new Date(endRaw) : new Date(start.getTime() + 30*60_000);
+    const declined = (ev.attendees || []).find(a => a.self)?.responseStatus === "declined";
+    events.push({
+      id: `meeting:${ev.id}`,
+      source: "meeting",
+      timestamp: start.getTime(),
+      endTimestamp: endDate.getTime(),
+      title: ev.summary || "(untitled)",
+      subject: attendeeBlurb(ev),
+      body: stripHtml(ev.description || "").slice(0, 1000),
+      url: ev.htmlLink,
+      people: (ev.attendees || []).filter(a => !a.self && !a.resource).map(a => a.displayName || a.email || "").filter(Boolean),
+      declined
+    });
+  }
+  for (const t of (tickets || [])) {
+    if (t.createdAt) {
+      const ts = new Date(t.createdAt).getTime();
+      events.push({
+        id: `linear_created:${t.id}`,
+        source: "linear_created",
+        timestamp: ts,
+        title: `Created ${t.id}`,
+        subject: t.title || "",
+        body: t.description || "",
+        url: t.url,
+        people: [t.createdBy].filter(Boolean)
+      });
+    }
+    if (t.completedAt) {
+      const ts = new Date(t.completedAt).getTime();
+      events.push({
+        id: `linear_completed:${t.id}`,
+        source: "linear_completed",
+        timestamp: ts,
+        title: `Completed ${t.id}`,
+        subject: t.title || "",
+        body: t.description || "",
+        url: t.url,
+        people: [t.assignee].filter(Boolean)
+      });
+    }
+  }
+  await idbPutMany("events", events);
+}
+function freshnessFor(range) {
+  if (isPastWeek(range)) return Infinity;       // past = immutable
+  return 6 * 60 * 60_000;                        // current/future = 6 hours, refresh forces fresh
+}
+function fmtAge(ms) {
+  if (ms === Infinity) return "cached";
+  const min = Math.floor(ms / 60_000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  return `${Math.floor(min / 60)}h ago`;
+}
+function fmtBytes(n) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024*1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(2)} MB`;
+}
+
+// ============== MCP plumbing ==============
+async function safeCall(name, args) {
+  try { return await window.cowork.callMcpTool(name, args); }
+  catch (e) { console.error("MCP failed", name, e); return null; }
+}
+
+function extractText(resp) {
+  if (resp == null) return "";
+  if (typeof resp === "string") { try { return extractText(JSON.parse(resp)); } catch { return resp; } }
+  if (Array.isArray(resp)) return resp.map(extractText).filter(Boolean).join("\n");
+  if (typeof resp === "object") {
+    if (typeof resp.results === "string") return resp.results;
+    if (typeof resp.text === "string") {
+      try { const o = JSON.parse(resp.text); if (o && typeof o === "object") return extractText(o); } catch {}
+      return resp.text;
+    }
+    if (Array.isArray(resp.content)) return extractText(resp.content);
+    for (const v of Object.values(resp)) {
+      const t = extractText(v);
+      if (t && /# Search Results|### Result \d+ of \d+/.test(t)) return t;
+    }
+  }
+  return "";
+}
+
+function extractObject(resp) {
+  if (resp == null) return null;
+  if (typeof resp === "string") { try { return JSON.parse(resp); } catch { return null; } }
+  if (Array.isArray(resp)) { for (const x of resp) { const o = extractObject(x); if (o) return o; } return null; }
+  if (typeof resp === "object") {
+    if (Array.isArray(resp.content)) {
+      for (const c of resp.content) {
+        if (c && typeof c.text === "string") { try { return JSON.parse(c.text); } catch {} }
+      }
+    }
+    return resp;
+  }
+  return null;
+}
+
+// ============== Cowork sessions ==============
+// Pulls recent past sessions, grabs a tight snippet of each transcript, and returns a normalized list.
+// list_sessions has no timestamps so we take "top N most recent" as the heuristic for "this week".
+function parseTranscriptText(text) {
+  // Parser for read_transcript output: lines like "[role] body" with bodies that may span multiple lines.
+  if (!text) return { title: "", messages: [] };
+  const titleMatch = text.match(/^Session "([^"]+)"/);
+  const title = titleMatch ? titleMatch[1] : "";
+  const body = text.replace(/^Session "[^"]+":[^\n]*\n*/, "");
+  const messages = [];
+  const re = /^\[(user|assistant)\]\s?([\s\S]*?)(?=^\[(?:user|assistant)\]|\z)/gm;
+  let m;
+  while ((m = re.exec(body)) !== null) {
+    const role = m[1];
+    const text = m[2].trim();
+    if (text) messages.push({ role, text });
+  }
+  return { title, messages };
+}
+
+function parseSessionsList(text) {
+  // Format: lines like "  - <id> \"<title>\" (idle, ...)"
+  if (!text) return [];
+  const out = [];
+  const re = /^\s*-\s+(local_[A-Za-z0-9-]+)\s+"([^"]+)"/gm;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    out.push({ id: m[1], title: m[2] });
+  }
+  return out;
+}
+
+async function fetchCoworkSessions(limit = 15) {
+  const listResp = await safeCall(SESSIONS_LIST, { limit });
+  const listText = (typeof listResp === "string" ? listResp : extractText(listResp)) || "";
+  const sessions = parseSessionsList(listText);
+  if (!sessions.length) return [];
+  // Read transcripts in parallel (small limit so payload stays bounded).
+  const transcripts = await Promise.all(sessions.map(s =>
+    safeCall(SESSIONS_READ, { session_id: s.id, limit: 12, max_wait_seconds: 0 })
+      .then(r => parseTranscriptText(typeof r === "string" ? r : extractText(r)))
+      .catch(() => ({ title: s.title, messages: [] }))
+  ));
+  return sessions.map((s, i) => {
+    const t = transcripts[i];
+    const msgs = t.messages || [];
+    const firstUser = msgs.find(m => m.role === "user");
+    const lastAssistant = [...msgs].reverse().find(m => m.role === "assistant");
+    return {
+      id: s.id,
+      title: t.title || s.title,
+      first_user: (firstUser?.text || "").slice(0, 600),
+      last_assistant: (lastAssistant?.text || "").slice(0, 600),
+      message_count: msgs.length
+    };
+  });
+}
+
+// ============== Slack parsing ==============
+function parseSlackResults(text, source) {
+  if (!text || /No results found/.test(text)) return [];
+  const blocks = text.split(/^### Result \d+ of \d+\s*$/m).slice(1);
+  const out = [];
+  for (const b of blocks) {
+    const get = (re) => { const m = b.match(re); return m ? m[1].trim() : ""; };
+    const channelId = get(/Channel:[^\n]*\(ID:\s*([A-Z0-9]+)\)/);
+    const channelKindRaw = get(/Channel:\s*([^\(]+?)\s*\(/);
+    const channelName = get(/Channel:\s*#([A-Za-z0-9_\-]+)/);
+    const participants = get(/Participants:\s*([^\n]+)/);
+    const fromName = get(/From:\s*(.+?)\s*\(ID:/);
+    const fromId = get(/From:[^\n]*\(ID:\s*([A-Z0-9]+)\)/);
+    const ts = parseFloat(get(/Message_ts:\s*([0-9.]+)/));
+    const permalink = get(/Permalink:\s*\[link\]\(([^)]+)\)/);
+    const textMatch = b.match(/Text:\s*\n([\s\S]*?)(?=\nContext (?:before|after):|\n---|$)/);
+    const messageText = textMatch ? textMatch[1].trim() : "";
+    const ctxBefore = (b.match(/Context before:\s*\n([\s\S]*?)(?=\nContext after:|\n---|$)/) || [,""])[1];
+    if (!channelId || !ts) continue;
+    out.push({
+      channelId, channelKind: channelKindRaw, channelName,
+      participants, fromName, fromId, ts, permalink,
+      text: messageText, contextBefore: ctxBefore, source
+    });
+  }
+  return out;
+}
+
+function groupByChannel(results) {
+  const byCh = new Map();
+  for (const r of results) {
+    if (!byCh.has(r.channelId)) {
+      byCh.set(r.channelId, {
+        channelId: r.channelId, channelKind: r.channelKind, channelName: r.channelName,
+        participants: r.participants, sources: new Set([r.source]),
+        latestTs: r.ts, latestFrom: r.fromName, latestFromId: r.fromId,
+        latestText: r.text, latestPermalink: r.permalink,
+        messages: [], contextBefore: r.contextBefore || "",
+      });
+    }
+    const g = byCh.get(r.channelId);
+    g.sources.add(r.source);
+    g.messages.push({ from: r.fromName, fromId: r.fromId, text: r.text, ts: r.ts });
+    if (r.ts > g.latestTs) {
+      g.latestTs = r.ts; g.latestFrom = r.fromName; g.latestFromId = r.fromId;
+      g.latestText = r.text; g.latestPermalink = r.permalink;
+    }
+    if ((r.contextBefore || "").length > (g.contextBefore || "").length) g.contextBefore = r.contextBefore;
+  }
+  return [...byCh.values()].sort((a, b) => b.latestTs - a.latestTs);
+}
+
+function displayWho(g) {
+  if (g.channelName) return "#" + g.channelName;
+  if (g.participants) {
+    const names = g.participants.split(",").map(s => s.trim());
+    const others = names.filter(n => !new RegExp(ME_NAME, "i").test(n));
+    return others.length ? others.join(", ") : names.join(", ");
+  }
+  return g.latestFrom || "Unknown";
+}
+
+// ============== Email parsing & filtering ==============
+function senderName(raw) {
+  if (!raw) return "";
+  // Format may be "Name <email@x>" or just "email@x"
+  const m = raw.match(/^"?([^"<]+?)"?\s*<([^>]+)>/);
+  if (m) return m[1].trim();
+  return raw.split("@")[0];
+}
+function senderEmail(raw) {
+  if (!raw) return "";
+  const m = raw.match(/<([^>]+)>/);
+  return (m ? m[1] : raw).toLowerCase().trim();
+}
+function isMeEmail(raw) {
+  return senderEmail(raw).includes(ME_EMAIL.toLowerCase());
+}
+
+function filterAndNormalizeEmails(rawThreads) {
+  const out = [];
+  for (const t of (rawThreads || [])) {
+    const msgs = (t.messages || []).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+    if (!msgs.length) continue;
+    const subject = msgs[0].subject || "(no subject)";
+    if (CAL_AUTO_SUBJECT_RE.test(subject)) continue;
+    // Skip if every message is from a noise sender
+    const allNoise = msgs.every(m => NOISE_SENDER_RE.test(m.sender || ""));
+    if (allNoise) continue;
+    // Skip if all messages are FROM Dan (no incoming activity — sent-only)
+    const anyIncoming = msgs.some(m => !isMeEmail(m.sender));
+    if (!anyIncoming) continue;
+
+    const last = msgs[msgs.length - 1];
+    const lastFromMe = isMeEmail(last.sender);
+    // "Who" = unique non-Dan names
+    const others = [];
+    const seenE = new Set();
+    for (const m of msgs) {
+      if (isMeEmail(m.sender)) continue;
+      const e = senderEmail(m.sender);
+      if (seenE.has(e)) continue;
+      seenE.add(e);
+      others.push(senderName(m.sender));
+    }
+    out.push({
+      threadId: t.id,
+      subject,
+      others: others.slice(0, 3),
+      latestTs: new Date(last.date).getTime() / 1000,
+      latestFromMe: lastFromMe,
+      latestFromName: lastFromMe ? "you" : senderName(last.sender),
+      latestSnippet: (last.snippet || "").replace(/\s+/g, " ").trim(),
+      permalink: `https://mail.google.com/mail/u/0/#inbox/${t.id}`,
+      messages: msgs.map(m => ({
+        from: senderName(m.sender), email: senderEmail(m.sender),
+        ts: new Date(m.date).getTime() / 1000,
+        text: (m.snippet || "").replace(/\s+/g, " ").trim(),
+        isMe: isMeEmail(m.sender)
+      }))
+    });
+  }
+  return out.sort((a, b) => b.latestTs - a.latestTs);
+}
+
+function emailDisplayWho(e) {
+  return e.others.length ? e.others.join(", ") : "—";
+}
+
+function sourceTags(g) {
+  const tags = [];
+  if (g.sources.has("dm")) tags.push({ cls: "dm", label: "DM" });
+  if (g.sources.has("mention")) tags.push({ cls: "mention", label: "@mention" });
+  if (g.sources.has("replied")) tags.push({ cls: "channel", label: "you replied" });
+  if (g.sources.has("data")) tags.push({ cls: "data", label: "data" });
+  return tags;
+}
+
+// ============== Calendar / Drive ==============
+function eventLooksRelevant(ev) {
+  if (ev.eventType && ev.eventType !== "default") return false;
+  const att = ev.attendees || [];
+  if (att.length < 2) return false;
+  const me = att.find(a => a.self);
+  if (me && me.responseStatus === "declined") return false;
+  return true;
+}
+
+function isMeetingNoteDoc(file) {
+  const t = (file.title || "").toLowerCase();
+  if (file.mimeType !== "application/vnd.google-apps.document") return false;
+  return t.includes("notes by gemini") || t.startsWith("meeting") || t.includes("meeting notes") || t.includes("– notes") || t.includes("- notes");
+}
+
+function eventStart(ev) {
+  const s = ev.start?.dateTime || ev.start?.date;
+  return s ? new Date(s) : null;
+}
+
+function attendeeBlurb(ev) {
+  return (ev.attendees || []).filter(a => !a.self && !a.resource).map(a => (a.displayName || a.email || "").split("@")[0]).filter(Boolean).slice(0, 6).join(", ");
+}
+
+// Pre-filter helpers: cheap regex check to drop non-actionable content before LLM synthesis.
+function slackThreadIsInteresting(t) {
+  if (t.sources?.has("dm")) return true;
+  for (const m of t.messages || []) {
+    if (m.fromId === ME) return true; // Dan engaged
+    if (ACTION_RE.test(m.text || "")) return true;
+  }
+  return false;
+}
+function emailThreadIsInteresting(e) {
+  for (const m of e.messages || []) {
+    if (m.isMe) return true;
+    if (ACTION_RE.test(m.text || "")) return true;
+  }
+  if (ACTION_RE.test(e.latestSnippet || "")) return true;
+  if (ACTION_RE.test(e.subject || "")) return true;
+  return false;
+}
+
+// ============== AI synthesis ==============
+async function synthesize(threads, emails, pastMeetings, upcomingMeetings, coworkSessions, weekKey) {
+  // Pre-filter keeps signal-quality high. Dropped items still render in the UI from raw data;
+  // they just don't get AI summaries / aren't candidates for needs_reply.
+  const synthThreads = threads.filter(slackThreadIsInteresting);
+  const synthEmails = emails.filter(emailThreadIsInteresting);
+
+  const payload = {
+    me: ME_NAME,
+    week: weekKey,
+    cowork_sessions: (coworkSessions || []).map(s => ({
+      id: s.id, title: s.title,
+      first_user_message: s.first_user,
+      last_assistant_message: s.last_assistant,
+      message_count: s.message_count
+    })),
+    threads: synthThreads.map(t => ({
+      id: t.channelId,
+      who: displayWho(t),
+      sources: [...t.sources],
+      latest_from: t.latestFrom,
+      latest_from_is_me: t.latestFromId === ME,
+      latest_text: t.latestText,
+      permalink: t.latestPermalink,
+      recent_messages: t.messages.slice(-12).map(m => ({
+        from: m.from, is_me: m.fromId === ME, text: (m.text || "").slice(0, 400)
+      })),
+      context_before: (t.contextBefore || "").slice(0, 1200)
+    })),
+    emails: synthEmails.map(e => ({
+      id: e.threadId,
+      subject: e.subject,
+      who: emailDisplayWho(e),
+      latest_from: e.latestFromName,
+      latest_from_is_me: e.latestFromMe,
+      latest_snippet: e.latestSnippet,
+      permalink: e.permalink,
+      recent_messages: e.messages.slice(-8).map(m => ({
+        from: m.from, is_me: m.isMe, text: (m.text || "").slice(0, 400)
+      }))
+    })),
+    past_meetings: pastMeetings.map(m => ({
+      id: m.id, title: m.title, when: m.when, attendees: m.attendees,
+      notes_snippet: (m.notesSnippet || "").slice(0, 3000),
+      description: stripHtml(m.description || "").slice(0, 1500),
+      scheduled_by_me_this_week: !!m.createdByMeInWindow
+    })),
+    upcoming_meetings: upcomingMeetings.map(m => ({
+      id: m.id, title: m.title, when: m.when, attendees: m.attendees,
+      description: stripHtml(m.description || "").slice(0, 1500),
+      scheduled_by_me_this_week: !!m.createdByMeInWindow
+    }))
+  };
+
+  // Synth cache: identical input => identical output, no LLM call.
+  const synthCacheKey = `synth:${weekKey}:${djb2(JSON.stringify(payload))}`;
+  const cachedSynth = cacheGet(synthCacheKey, Infinity);
+  if (cachedSynth) return cachedSynth.data;
+  const prompt = [
+    "You analyze a week of Dan's Slack activity, email, and meetings, and produce a digest.",
+    "Dan is Director of Data at Optio Incentives. His work centers on BI tooling, ARR reconciliation, OFS data model, financial reporting, and vendor demos.",
+    "",
+    "PHRASE LIBRARY — use these as anchors when detecting asks, commitments, and completions. They are signals, not exhaustive — judgment still applies, and context matters.",
+    "",
+    "ASK signals (someone is asking Dan for something):",
+    "  generic: 'can you', 'could you', 'would you', 'any chance', 'mind if', 'I need', 'we need from you', 'could use your', 'thoughts on', 'what do you think', 'your take on', 'ETA on', 'where are we on', 'any update on', 'follow up on', 'circle back on', 'when can you', 'by Friday?', 'by EOD?', 'by EOW?'",
+    "  data-domain: 'can you pull', 'do you have the numbers', 'can you validate', 'where's the data on', 'can you reconcile', 'do we have a dashboard for', 'can you check the data'",
+    "",
+    "COMMITMENT signals (Dan is saying he'll do something — open until he announces completion):",
+    "  generic: \"I'll\", 'I will', 'let me', 'give me until', 'I owe you', \"I'll get back to you\", \"I'll send\", \"I'll share\", \"I'll book\", \"I'll set up\", \"I'll loop in\", 'happy to take', 'I can own', 'I can take that on', 'by Friday I will', 'by EOD I will', 'later today I will', 'tomorrow I will'",
+    "  data-domain: \"I'll pull the ARR\", \"I'll build the deck\", \"I'll wire up the pipeline\", \"I'll schedule the demo\", \"I'll reconcile\", \"I'll validate\", \"I'll loop in [person]\"",
+    "",
+    "COMPLETION signals (Dan announcing he's already done something — past tense, from Dan only):",
+    "  generic: 'sent', 'shared', 'pushed', 'merged', 'deployed', 'scheduled', 'booked', 'set up', 'wrote up', 'pulled', 'created', 'added', 'linked', 'uploaded', 'signed off', 'reviewed', 'finished', 'closed out', 'aligned with', 'followed up with', 'met with', 'shipped'",
+    "  patterns: 'Done — …', 'Just …', 'Finished the …', 'Sent over', 'Shared the', 'Booked the', \"Met with [person] and we\"",
+    "  data-domain: 'pulled the data', 'reconciled', 'validated the numbers', 'built the dashboard', 'shipped the deck', 'scheduled the demo with [vendor]'",
+    "",
+    "Skip trivial completions: 'thanks', 'sounds good', 'on my way', 'will do' (without specifics), emoji-only, single-word acks, or anything where the 'completion' is just typing a reply.",
+    "",
+    "For each Slack thread, decide:",
+    "(a) `summary`: TWO sentences (<=40 words total). First = what the thread is about. Second = current state, any pending decision/ask, or where it landed.",
+    "(b) `needs_reply`: true ONLY if the LAST message was NOT from Dan AND it contains a question, ask, or pending decision aimed at him.",
+    "(c) `reply_reason`: if needs_reply is true, ~10 words paraphrasing the open ask.",
+    "(d) `linked_meeting_ids`: array of past_meeting IDs clearly related (same people or topic). Empty if none.",
+    "",
+    "For each EMAIL thread, decide the same fields with the SAME rules:",
+    "(a) `summary`: TWO sentences. What the thread is about + current state / pending ask.",
+    "(b) `needs_reply`: true ONLY if last message NOT from Dan AND it asks something or expects a response. Be strict — auto-acknowledgements, FYI forwards, and threads where Dan already said the closing word do not need reply.",
+    "(c) `reply_reason`: ~10 words paraphrasing the open ask.",
+    "Return these in `emails` array.",
+    "",
+    "For each past meeting, produce `meeting_summaries`: {id, summary} with TWO sentences (<=45 words total). First = what was discussed. Second = the outcome, decision, or notable next-step. If notes_snippet has a 'Summary' or 'Decisions' section, ground in that. If neither notes nor description has content, return 'No notes captured.' as the summary.",
+    "",
+    "For each upcoming meeting, produce `meeting_agendas`: {id, agenda} with TWO sentences (<=45 words total). Pull from description if it has real agenda content; if it's just scheduling boilerplate, say 'No agenda shared.'",
+    "",
+    "Then `linear_actions`: SHORT list (max 10) of OPEN suggested Linear issues — work that's been committed to but NOT YET DONE. Pull from:",
+    "  - Explicit asks/commitments on Dan in threads, EMAILS, or meeting next-steps assigned to him.",
+    "  - `cowork_sessions` where the FIRST USER MESSAGE describes a task that wasn't fully resolved by the last assistant message (e.g. exploration, planning, half-finished analysis). The session title is often a Linear-ready task description.",
+    "Each: {id (stable like 'la-1'), title (action verb imperative <=70 chars), description (2-3 sentences), source_thread_id (optional), source_email_id (optional), source_meeting_id (optional), source_session_id (optional), source_permalink (optional), suggested_team_hint}.",
+    "",
+    "Then `completed_actions`: list (max 12) of work Dan has ALREADY DONE this week that should be tracked retrospectively in Linear. Lean toward inclusion — better to surface a candidate Dan can dismiss than to under-detect. Four kinds of evidence count:",
+    "  (i) Slack/email messages FROM DAN announcing a completion: past-tense verbs ('sent', 'shared', 'booked', 'scheduled', 'pulled', 'pushed', 'merged', 'wrote up', 'aligned', 'followed up', 'set up', 'closed out', 'reviewed', 'finished', 'met with'). Patterns: 'Done — …', 'Just …', 'Met with X and we …'.",
+    "  (ii) Calendar bookings flagged with `scheduled_by_me_this_week: true` in upcoming_meetings or past_meetings — Dan booked the meeting this week. Each one is a SEPARATE completion. Title pattern: 'Booked {meeting title} with {attendee}'. Group obvious batches (e.g. multiple intro 1:1s) into a SINGLE completion: 'Scheduled N intro 1:1s for the week of {date}' with attendees in description.",
+    "  (iii) Past meetings Dan attended where notes_snippet shows next-steps assigned to him that he clearly fulfilled (e.g. notes say 'Dan will share the deck' and a thread shows him sharing it).",
+    "  (iv) `cowork_sessions` where the conversation produced a tangible output or resolved the user's ask (e.g. session title 'Create HubSpot ARR change tracking object' + last assistant message confirms the spec). Use the session title as the candidate ticket title. Skip trivially-short sessions (one-off lookups like 'BHG acronym meaning', 'Find skills folder location').",
+    "Each entry: {id (stable like 'ca-1'), title (<=70 chars), description (2-3 sentences with the evidence), source_thread_id (optional), source_email_id (optional), source_meeting_id (optional), source_session_id (optional), source_permalink (optional), suggested_team_hint}.",
+    "Skip trivial replies ('thanks', 'sounds good', emoji-only). Skip anything that ALSO appears in linear_actions. Skip noise ('on my way', 'I'm online').",
+    "",
+    "Now produce `section_summaries` — a 1-2 sentence rollup PER SECTION, derived FROM YOUR OWN per-item summaries above (not from raw data). These are read alone, so each must stand on its own. Keep each <=35 words.",
+    "  - `conversations`: rollup across the Slack threads. Themes that recurred, key people, where energy went. Skip if no threads.",
+    "  - `email`: rollup across email threads. External vendors/customers, internal correspondence. Skip if no emails.",
+    "  - `meetings_past`: rollup of past_meetings. What got discussed and decided. Skip if no past meetings.",
+    "  - `meetings_upcoming`: rollup of upcoming_meetings. Themes/people/decisions on deck. Skip if none.",
+    "  - `open_work`: rollup of linear_actions. What's queued up. Skip if no open actions.",
+    "  - `completed`: rollup of completed_actions. What got shipped this week. Skip if none.",
+    "Use empty string '' for any section that doesn't apply.",
+    "",
+    "Then `week_recap`: a personal, concise narrative for Dan, BUILT FROM your section_summaries (not raw data). Three keys, each 2-3 sentences (<=55 words each):",
+    "  - `worked_on`: synthesizes `meetings_past`, `open_work`, `completed`. Concrete projects Dan was pushing on.",
+    "  - `talked_about`: synthesizes `conversations`, `email`, `meetings_past`. Topics and key conversations.",
+    "  - `planned`: synthesizes `open_work`, `meetings_upcoming`. Commitments, decisions, what's queued up.",
+    "Write in second person ('you'), past tense for past weeks, present/future for the current week. Avoid corporate-speak.",
+    "",
+    "Finally `next_actions`: list of UP TO 3 recommendations for what Dan should work on next, ordered most-important first. Pick highest-leverage items considering:",
+    "  - Linear tickets in `open_work` / `linear_actions` with high priority or that block others",
+    "  - Open asks in Needs reply (LATEST messages from someone else with a question that hasn't been answered)",
+    "  - Deliverables expected for upcoming meetings (e.g. agenda mentions a doc Dan owes)",
+    "  - Time-sensitivity (Friday meeting prep, end-of-week deadlines, blocking dependencies)",
+    "Each item: { `title` (imperative action <=70 chars), `why` (2-3 sentences explaining leverage and time-sensitivity), `source_label` (short string like 'DATA-1140', '#cs-questions', 'Friday Håkon sync') }.",
+    "Be opinionated — only include things that genuinely matter. Quality over quantity: 1 great item is better than 3 mediocre ones. If nothing genuinely urgent, return [].",
+    "Important: do NOT recommend replying to a thread where Dan already sent the last message. Check `latest_from_is_me` on threads — if true, that thread does NOT need a reply.",
+    "",
+    "Return STRICT JSON: {\"threads\":[...], \"emails\":[...], \"meeting_summaries\":[...], \"meeting_agendas\":[...], \"linear_actions\":[...], \"completed_actions\":[...], \"section_summaries\":{\"conversations\":\"...\",\"email\":\"...\",\"meetings_past\":\"...\",\"meetings_upcoming\":\"...\",\"open_work\":\"...\",\"completed\":\"...\"}, \"week_recap\":{\"worked_on\":\"...\",\"talked_about\":\"...\",\"planned\":\"...\"}, \"next_actions\":[{\"title\":\"...\",\"why\":\"...\",\"source_label\":\"...\"}]}. No markdown fences."
+  ].join("\n");
+  try {
+    const resp = await window.cowork.askClaude(prompt, [payload]);
+    const txt = typeof resp === "string" ? resp : (resp?.text || JSON.stringify(resp));
+    const m = txt.match(/\{[\s\S]*\}/);
+    if (!m) return {};
+    const parsed = JSON.parse(m[0]);
+    cacheSet(synthCacheKey, parsed);
+    return parsed;
+  } catch (e) {
+    console.error("askClaude failed", e);
+    return {};
+  }
+}
+
+// Just-agendas mode for "next week" tab (no Slack)
+async function synthesizeAgendas(upcomingMeetings) {
+  const payload = { meetings: upcomingMeetings.map(m => ({
+    id: m.id, title: m.title, when: m.when, attendees: m.attendees,
+    description: stripHtml(m.description || "").slice(0, 1500)
+  })) };
+  const synthCacheKey = `synth:next:${djb2(JSON.stringify(payload))}`;
+  const cached = cacheGet(synthCacheKey, Infinity);
+  if (cached) return cached.data;
+  const prompt = [
+    "For each upcoming meeting, write a TWO-sentence agenda summary (<=45 words total).",
+    "First sentence: what will be discussed. Second sentence: any decisions, deliverables, or open questions to resolve.",
+    "If description is just scheduling boilerplate (zoom links, reschedule URLs, meeting platform copy, attendee bios), output 'No agenda shared.' as the agenda.",
+    "",
+    "Also produce `section_summaries.meetings_upcoming`: 1-2 sentences (<=35 words) summarizing the upcoming meetings as a group — themes, key people, decisions on deck.",
+    "",
+    "Also produce `week_recap`: a forward-looking narrative for Dan. Three keys, each 2-3 sentences (<=55 words each):",
+    "  - `worked_on`: ''",
+    "  - `talked_about`: ''",
+    "  - `planned`: a personal, concise summary of what's coming — themes across the week's meetings, key conversations to prepare for, decisions that need to land. Name specific people and topics. Write in second person. Build this from `section_summaries.meetings_upcoming`.",
+    "",
+    "Return STRICT JSON: {\"agendas\":[{id, agenda}], \"section_summaries\":{\"meetings_upcoming\":\"...\"}, \"week_recap\":{\"worked_on\":\"\",\"talked_about\":\"\",\"planned\":\"...\"}}. No markdown fences."
+  ].join("\n");
+  try {
+    const resp = await window.cowork.askClaude(prompt, [payload]);
+    const txt = typeof resp === "string" ? resp : (resp?.text || JSON.stringify(resp));
+    const m = txt.match(/\{[\s\S]*\}/);
+    if (!m) return { agendas: [], week_recap: null };
+    const parsed = JSON.parse(m[0]);
+    cacheSet(synthCacheKey, parsed);
+    return parsed;
+  } catch (e) {
+    console.error("askClaude failed", e);
+    return { agendas: [], week_recap: null };
+  }
+}
+
+// ============== Linear ==============
+async function loadTeams() {
+  const r = await safeCall(LINEAR_TEAMS, { limit: 50 });
+  const obj = extractObject(r);
+  const teams = (obj && obj.teams) || [];
+  const sel = document.getElementById("team-select");
+  sel.innerHTML = "";
+  if (!teams.length) { sel.innerHTML = "<option>(no teams)</option>"; return; }
+  teams.sort((a, b) => a.name.localeCompare(b.name));
+  for (const t of teams) {
+    const opt = document.createElement("option");
+    opt.value = t.id; opt.textContent = t.name;
+    sel.appendChild(opt);
+  }
+  const saved = localStorage.getItem(TEAM_KEY);
+  const explicit = localStorage.getItem(TEAM_EXPLICIT_KEY) === "1";
+  const defaultTeam = teams.find(t => /^data\s*&\s*insights$/i.test(t.name || ""))
+    || teams.find(t => /data/i.test(t.name || ""));
+  // If the user hasn't explicitly chosen a team, prefer Data & Insights regardless of any prior auto-pick.
+  if (explicit && saved && teams.find(t => t.id === saved)) {
+    sel.value = saved;
+  } else if (defaultTeam) {
+    sel.value = defaultTeam.id;
+    localStorage.setItem(TEAM_KEY, defaultTeam.id);
+  } else if (saved && teams.find(t => t.id === saved)) {
+    sel.value = saved;
+  }
+  sel.addEventListener("change", () => {
+    localStorage.setItem(TEAM_KEY, sel.value);
+    localStorage.setItem(TEAM_EXPLICIT_KEY, "1");
+  });
+}
+
+async function createInLinear(action, btn) {
+  const sel = document.getElementById("team-select");
+  const teamId = sel.value;
+  if (!teamId) { alert("Pick a Linear team first."); return; }
+  btn.disabled = true; btn.textContent = "Creating…";
+  const desc = (action.description || "") +
+    (action.source_permalink ? `\n\nSource: ${action.source_permalink}` : "");
+  const r = await safeCall(LINEAR_SAVE, { title: action.title, team: teamId, description: desc, assignee: "me" });
+  const obj = extractObject(r);
+  const created = lsGetObj(CREATED_KEY);
+  const issueId = obj?.issue?.identifier || obj?.identifier || obj?.issue?.id || "(created)";
+  created[action.id] = { id: issueId, ts: Date.now() };
+  lsSetObj(CREATED_KEY, created);
+  cacheClear("tickets:me");
+  btn.classList.remove("primary");
+  btn.innerHTML = `<span class="check">✓</span> ${escapeHtml(issueId)}`;
+}
+
+async function logAsDone(action, btn) {
+  const sel = document.getElementById("team-select");
+  const teamId = sel.value;
+  if (!teamId) { alert("Pick a Linear team first."); return; }
+  btn.disabled = true; btn.textContent = "Logging…";
+  const desc = (action.description || "") +
+    (action.source_permalink ? `\n\nSource: ${action.source_permalink}` : "") +
+    `\n\nLogged retrospectively from weekly digest.`;
+  // state="completed" matches Linear's "completed" state type, which maps to the team's Done workflow state.
+  const r = await safeCall(LINEAR_SAVE, {
+    title: action.title, team: teamId, description: desc,
+    assignee: "me", state: "completed"
+  });
+  const obj = extractObject(r);
+  const logged = lsGetObj(LOGGED_DONE_KEY);
+  const issueId = obj?.issue?.identifier || obj?.identifier || obj?.issue?.id || "(logged)";
+  logged[action.id] = { id: issueId, ts: Date.now() };
+  lsSetObj(LOGGED_DONE_KEY, logged);
+  cacheClear("tickets:me");
+  btn.classList.remove("primary");
+  btn.innerHTML = `<span class="check">✓</span> ${escapeHtml(issueId)}`;
+}
+
+// ============== Render ==============
+function renderEmpty(el, msg) { el.innerHTML = `<div class="empty">${escapeHtml(msg)}</div>`; }
+
+function renderWeekRecap(weekKey, recap, hadAnyData) {
+  const el = document.getElementById(`${weekKey}-summary`);
+  if (!el) return;
+  const labels = {
+    last: "Week recap", this: "Week so far", next: "Looking ahead"
+  };
+  if (!hadAnyData) {
+    el.innerHTML = `<div class="ws-label">${labels[weekKey]}</div>
+      <div class="ws-body" style="color:#8e8e93;font-style:italic">Nothing in the data for this window.</div>`;
+    return;
+  }
+  if (!recap) {
+    el.innerHTML = `<div class="ws-label">${labels[weekKey]}</div>
+      <div class="ws-body" style="color:#8e8e93;font-style:italic">Couldn't generate a recap. Reload to retry.</div>`;
+    return;
+  }
+  const blocks = [];
+  if (recap.worked_on && recap.worked_on.trim()) {
+    blocks.push(`<div class="ws-block"><div class="ws-heading">Worked on</div><div class="ws-body">${escapeHtml(recap.worked_on)}</div></div>`);
+  }
+  if (recap.talked_about && recap.talked_about.trim()) {
+    blocks.push(`<div class="ws-block"><div class="ws-heading">Talked about</div><div class="ws-body">${escapeHtml(recap.talked_about)}</div></div>`);
+  }
+  if (recap.planned && recap.planned.trim()) {
+    blocks.push(`<div class="ws-block"><div class="ws-heading">Planned</div><div class="ws-body">${escapeHtml(recap.planned)}</div></div>`);
+  }
+  el.innerHTML = `<div class="ws-label">${labels[weekKey]}</div>${blocks.join("")}`;
+}
+
+function slackIgnoreKey(t) { return `slack:${t.channelId}:${t.latestTs}`; }
+function emailIgnoreKey(e) { return `email:${e.threadId}:${e.latestTs}`; }
+
+function renderThreadCard(t, meta, urgent) {
+  const tags = sourceTags(t).map(x => `<span class="tag ${x.cls}">${x.label}</span>`).join("");
+  const reason = urgent && meta?.reply_reason ? `<div class="reason">↳ ${escapeHtml(meta.reply_reason)}</div>` : "";
+  const summary = escapeHtml(meta?.summary || (t.latestText || "").replace(/\s+/g, " ").slice(0, 220));
+  const ignoreBtn = urgent ? `<button class="ignore-btn" data-ignore-key="${escapeHtml(slackIgnoreKey(t))}">Ignore</button>` : "";
+  return `<a class="card ${urgent ? "urgent" : ""}" href="${t.latestPermalink || "#"}" target="_blank" rel="noopener" data-channel="${t.channelId}">
+    ${ignoreBtn}
+    <div class="row1">
+      <span class="who"><span class="src-icon" title="Slack">💬</span>${escapeHtml(displayWho(t))}</span>
+      <span class="when">${escapeHtml(relTime(t.latestTs))}</span>
+    </div>
+    <div class="summary">${summary}</div>
+    ${reason}
+    <div class="meta-row"><span class="tag slack">Slack</span>${tags}<span class="tag">last: ${escapeHtml(t.latestFromId === ME ? "you" : (t.latestFrom || "—"))}</span></div>
+  </a>`;
+}
+
+function renderEmailCard(e, meta, urgent) {
+  const reason = urgent && meta?.reply_reason ? `<div class="reason">↳ ${escapeHtml(meta.reply_reason)}</div>` : "";
+  const summary = escapeHtml(meta?.summary || (e.latestSnippet || "").slice(0, 220));
+  const ignoreBtn = urgent ? `<button class="ignore-btn" data-ignore-key="${escapeHtml(emailIgnoreKey(e))}">Ignore</button>` : "";
+  const subjLine = `<span class="who"><span class="src-icon" title="Email">✉️</span>${escapeHtml(emailDisplayWho(e))}</span>`;
+  const subj = `<div style="color:#6e6e73;font-size:12px;margin-top:1px"><em>${escapeHtml(e.subject)}</em></div>`;
+  return `<a class="card ${urgent ? "urgent" : ""}" href="${e.permalink}" target="_blank" rel="noopener" data-thread="${e.threadId}">
+    ${ignoreBtn}
+    <div class="row1">
+      ${subjLine}
+      <span class="when">${escapeHtml(relTime(e.latestTs))}</span>
+    </div>
+    ${subj}
+    <div class="summary">${summary}</div>
+    ${reason}
+    <div class="meta-row"><span class="tag email">Email</span><span class="tag">last: ${escapeHtml(e.latestFromMe ? "you" : (e.latestFromName || "—"))}</span></div>
+  </a>`;
+}
+
+function attachIgnoreHandlers(containerEl, refreshFn) {
+  containerEl.querySelectorAll(".ignore-btn").forEach(btn => {
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      const ignored = lsGetSet(IGNORED_KEY);
+      ignored.add(btn.dataset.ignoreKey);
+      lsSetSet(IGNORED_KEY, ignored);
+      refreshFn();
+    });
+  });
+}
+
+function renderUrgent(threads, emails, threadMeta, emailMeta, weekKey) {
+  const el = document.getElementById(`${weekKey}-urgent`);
+  const countEl = document.getElementById(`${weekKey}-urgent-count`);
+  if (!el || !countEl) return;
+  const ignored = lsGetSet(IGNORED_KEY);
+  const urgentThreads = threads
+    .filter(t => threadMeta[t.channelId]?.needs_reply && !ignored.has(slackIgnoreKey(t)))
+    .map(t => ({ kind: "slack", item: t, ts: t.latestTs }));
+  const urgentEmails = emails
+    .filter(e => emailMeta[e.threadId]?.needs_reply && !ignored.has(emailIgnoreKey(e)))
+    .map(e => ({ kind: "email", item: e, ts: e.latestTs }));
+  const all = [...urgentThreads, ...urgentEmails].sort((a, b) => b.ts - a.ts);
+  countEl.textContent = String(all.length);
+  if (!all.length) { renderEmpty(el, "Inbox zero on open asks."); return; }
+  el.innerHTML = all.map(x =>
+    x.kind === "slack"
+      ? renderThreadCard(x.item, threadMeta[x.item.channelId], true)
+      : renderEmailCard(x.item, emailMeta[x.item.threadId], true)
+  ).join("");
+  attachIgnoreHandlers(el, () => renderUrgent(threads, emails, threadMeta, emailMeta, weekKey));
+}
+
+function renderConvos(threads, metaById, weekKey) {
+  const el = document.getElementById(`${weekKey}-convos`);
+  const countEl = document.getElementById(`${weekKey}-convo-count`);
+  if (!el || !countEl) return;
+  const nonUrgent = threads.filter(t => !metaById[t.channelId]?.needs_reply);
+  countEl.textContent = String(nonUrgent.length);
+  if (!nonUrgent.length) { renderEmpty(el, "No conversations in this window."); return; }
+  el.innerHTML = nonUrgent.map(t => renderThreadCard(t, metaById[t.channelId], false)).join("");
+}
+
+function renderEmails(emails, metaById, weekKey) {
+  const el = document.getElementById(`${weekKey}-emails`);
+  const countEl = document.getElementById(`${weekKey}-email-count`);
+  if (!el || !countEl) return;
+  // For This week, exclude items already shown in Needs reply
+  const isThis = weekKey === "this";
+  const visible = emails.filter(e => !(isThis && metaById[e.threadId]?.needs_reply));
+  countEl.textContent = String(visible.length);
+  if (!visible.length) { renderEmpty(el, "No active email threads."); return; }
+  el.innerHTML = visible.map(e => renderEmailCard(e, metaById[e.threadId], false)).join("");
+}
+
+function renderMeetingCard(m, summaryOrAgenda, isUpcoming, linkedThreads) {
+  const links = [];
+  if (m.htmlLink) links.push(`<a href="${m.htmlLink}" target="_blank" rel="noopener">Calendar</a>`);
+  if (m.notesUrl) links.push(`<a href="${m.notesUrl}" target="_blank" rel="noopener">Notes</a>`);
+  if (m.conferenceUrl) links.push(`<a href="${m.conferenceUrl}" target="_blank" rel="noopener">Meet</a>`);
+  const slackLinks = (linkedThreads || []).map(t => `<a href="${t.latestPermalink}" target="_blank" rel="noopener">↗ ${escapeHtml(displayWho(t))}</a>`);
+  const block = isUpcoming
+    ? `<div class="agenda-label">Agenda</div><div class="agenda">${escapeHtml(summaryOrAgenda || "Loading…")}</div>`
+    : `<div class="summary">${escapeHtml(summaryOrAgenda || "Loading…")}</div>`;
+  return `<div class="meeting">
+    <div class="row1"><span class="title">${escapeHtml(m.title)}</span><span class="when">${escapeHtml(m.when)}</span></div>
+    ${m.attendees ? `<div class="attendees">${escapeHtml(m.attendees)}</div>` : ""}
+    ${block}
+    <div class="links">${links.concat(slackLinks).join(" · ")}</div>
+  </div>`;
+}
+
+function renderPastMeetings(meetings, threads, metaById, weekKey, summariesById) {
+  const el = document.getElementById(`${weekKey}-past`) || document.getElementById(`${weekKey}-meetings`);
+  const countEl = document.getElementById(`${weekKey}-past-count`) || document.getElementById(`${weekKey}-meet-count`);
+  if (!el || !countEl) return;
+  countEl.textContent = String(meetings.length);
+  if (!meetings.length) { renderEmpty(el, "No meetings."); return; }
+  const linked = {};
+  for (const t of threads) {
+    const ids = metaById[t.channelId]?.linked_meeting_ids || [];
+    for (const mid of ids) (linked[mid] = linked[mid] || []).push(t);
+  }
+  el.innerHTML = meetings.map(m => renderMeetingCard(m, summariesById[m.id] || "", false, linked[m.id])).join("");
+}
+
+function renderUpcomingMeetings(meetings, weekKey, agendasById) {
+  const el = document.getElementById(`${weekKey}-upcoming`);
+  const countEl = document.getElementById(`${weekKey}-up-count`);
+  if (!el || !countEl) return;
+  countEl.textContent = String(meetings.length);
+  if (!meetings.length) { renderEmpty(el, "No upcoming meetings."); return; }
+  el.innerHTML = meetings.map(m => renderMeetingCard(m, agendasById[m.id] || "", true, null)).join("");
+}
+
+function renderCompleted(actions, threadsById, emailsById, weekKey) {
+  const el = document.getElementById(`${weekKey}-done`);
+  const countEl = document.getElementById(`${weekKey}-done-count`);
+  if (!el || !countEl) return;
+  const dismissed = lsGetSet(DISMISSED_DONE_KEY);
+  const logged = lsGetObj(LOGGED_DONE_KEY);
+  const visible = (actions || []).filter(a => !dismissed.has(a.id));
+  countEl.textContent = String(visible.length);
+  if (!visible.length) { renderEmpty(el, "Nothing untracked-but-done detected."); return; }
+  el.innerHTML = "";
+  for (const a of visible) {
+    const card = document.createElement("div");
+    card.className = "linear-card";
+    const slackThread = a.source_thread_id ? threadsById[a.source_thread_id] : null;
+    const emailThread = a.source_email_id ? emailsById[a.source_email_id] : null;
+    const srcLabel = slackThread ? displayWho(slackThread)
+      : (emailThread ? emailDisplayWho(emailThread)
+        : (a.source_session_id ? "Cowork session"
+          : (a.source_meeting_id ? "Calendar booking" : (a.suggested_team_hint || ""))));
+    const srcLink = a.source_permalink || slackThread?.latestPermalink || emailThread?.permalink || "";
+    const teamHint = a.suggested_team_hint ? ` · suggested team: <strong>${escapeHtml(a.suggested_team_hint)}</strong>` : "";
+    const coworkBadge = a.source_session_id ? `<span class="tag cowork" style="margin-right:6px">Cowork</span>` : "";
+    const wasLogged = logged[a.id];
+    card.innerHTML = `
+      <div class="title"><span class="src-icon">✓</span>${coworkBadge}${escapeHtml(a.title)}</div>
+      <div class="body">${escapeHtml(a.description || "")}</div>
+      <div class="src">Evidence: ${srcLink ? `<a href="${srcLink}" target="_blank" rel="noopener">${escapeHtml(srcLabel)}</a>` : escapeHtml(srcLabel)}${teamHint}</div>
+      <div class="actions">
+        <button class="btn primary log-btn">${wasLogged ? `<span class="check">✓</span> ${escapeHtml(wasLogged.id)}` : "Create + Complete"}</button>
+        <button class="btn dismiss-btn">Dismiss</button>
+      </div>`;
+    if (wasLogged) card.querySelector(".log-btn").disabled = true;
+    card.querySelector(".log-btn").addEventListener("click", (e) => {
+      e.preventDefault();
+      if (!card.querySelector(".log-btn").disabled) logAsDone(a, card.querySelector(".log-btn"));
+    });
+    card.querySelector(".dismiss-btn").addEventListener("click", () => {
+      const d = lsGetSet(DISMISSED_DONE_KEY); d.add(a.id); lsSetSet(DISMISSED_DONE_KEY, d);
+      card.style.display = "none";
+    });
+    el.appendChild(card);
+  }
+}
+
+function renderLinear(actions, threadsById, weekKey) {
+  const el = document.getElementById(`${weekKey}-linear`);
+  const countEl = document.getElementById(`${weekKey}-linear-count`);
+  if (!el || !countEl) return;
+  const dismissed = lsGetSet(DISMISSED_KEY);
+  const created = lsGetObj(CREATED_KEY);
+  const visible = (actions || []).filter(a => !dismissed.has(a.id));
+  countEl.textContent = String(visible.length);
+  if (!visible.length) { renderEmpty(el, "No suggested action items."); return; }
+  el.innerHTML = "";
+  for (const a of visible) {
+    const card = document.createElement("div");
+    card.className = "linear-card";
+    const sourceThread = a.source_thread_id ? threadsById[a.source_thread_id] : null;
+    const srcLabel = sourceThread ? displayWho(sourceThread) : (a.source_session_id ? "Cowork session" : (a.suggested_team_hint || ""));
+    const srcLink = a.source_permalink || sourceThread?.latestPermalink || "";
+    const teamHint = a.suggested_team_hint ? ` · ${escapeHtml(a.suggested_team_hint)}` : "";
+    const coworkBadge = a.source_session_id ? `<span class="tag cowork" style="margin-right:6px">Cowork</span>` : "";
+    const wasCreated = created[a.id];
+    card.innerHTML = `
+      <div class="title-row">${coworkBadge}${escapeHtml(a.title)}</div>
+      <div class="actions">
+        <button class="btn primary create-btn">${wasCreated ? `<span class="check">✓</span> ${escapeHtml(wasCreated.id)}` : "Create"}</button>
+        <button class="btn dismiss-btn">Dismiss</button>
+      </div>
+      <div class="body">${escapeHtml(a.description || "")}</div>
+      <div class="src">${srcLink ? `<a href="${srcLink}" target="_blank" rel="noopener">${escapeHtml(srcLabel)}</a>` : escapeHtml(srcLabel)}${teamHint}</div>`;
+    if (wasCreated) card.querySelector(".create-btn").disabled = true;
+    card.querySelector(".create-btn").addEventListener("click", (e) => {
+      e.preventDefault();
+      if (!card.querySelector(".create-btn").disabled) createInLinear(a, card.querySelector(".create-btn"));
+    });
+    card.querySelector(".dismiss-btn").addEventListener("click", () => {
+      const d = lsGetSet(DISMISSED_KEY); d.add(a.id); lsSetSet(DISMISSED_KEY, d);
+      card.style.display = "none";
+    });
+    el.appendChild(card);
+  }
+}
+
+// ============== My open Linear tickets ==============
+const STATUS_TYPE_RANK = { started: 0, unstarted: 1, backlog: 2, completed: 9, canceled: 9 };
+const PRIORITY_RANK = { 1: 0, 2: 1, 3: 2, 4: 3, 0: 4 };
+
+function priorityClass(p) {
+  const v = p?.value ?? 0;
+  return ({ 1: "urgent", 2: "high", 3: "medium", 4: "low" })[v] || "none";
+}
+function statusClass(t) {
+  if (t === "started") return "started";
+  if (t === "unstarted") return "unstarted";
+  return "backlog";
+}
+
+function filterAndSortTickets(rawIssues) {
+  const open = (rawIssues || []).filter(i =>
+    !i.archivedAt && !i.completedAt && !i.canceledAt &&
+    i.statusType !== "completed" && i.statusType !== "canceled"
+  );
+  open.sort((a, b) => {
+    const sa = STATUS_TYPE_RANK[a.statusType] ?? 5;
+    const sb = STATUS_TYPE_RANK[b.statusType] ?? 5;
+    if (sa !== sb) return sa - sb;
+    const pa = PRIORITY_RANK[a.priority?.value ?? 0] ?? 5;
+    const pb = PRIORITY_RANK[b.priority?.value ?? 0] ?? 5;
+    if (pa !== pb) return pa - pb;
+    return new Date(b.updatedAt) - new Date(a.updatedAt);
+  });
+  return open;
+}
+
+async function completeTicket(ticketId, btn, rowEl) {
+  btn.disabled = true; btn.textContent = "…";
+  const r = await safeCall(LINEAR_SAVE, { id: ticketId, state: "completed" });
+  if (r) {
+    cacheClear("tickets:me");
+    rowEl.style.transition = "opacity .2s";
+    rowEl.style.opacity = "0.4";
+    btn.innerHTML = `<span class="check">✓</span>`;
+    setTimeout(() => rowEl.remove(), 350);
+  } else {
+    btn.disabled = false; btn.textContent = "✓ Complete";
+    alert("Couldn't mark complete — try again or open in Linear.");
+  }
+}
+
+function renderTickets(tickets, weekKey) {
+  const el = document.getElementById(`${weekKey}-tickets`);
+  const countEl = document.getElementById(`${weekKey}-tickets-count`);
+  if (!el || !countEl) return;
+  countEl.textContent = String(tickets.length);
+  if (!tickets.length) { renderEmpty(el, "No open Linear tickets assigned to you."); return; }
+  el.innerHTML = "";
+  for (const t of tickets) {
+    const pri = priorityClass(t.priority);
+    const priLabel = t.priority?.name || "";
+    const statCls = statusClass(t.statusType);
+    const row = document.createElement("div");
+    row.className = "ticket-row";
+    row.innerHTML = `
+      <span class="id">${escapeHtml(t.id)}</span>
+      <span class="ttitle">${escapeHtml(t.title)}<span class="ticket-team">· ${escapeHtml(t.team || "")}</span></span>
+      <span class="pri ${pri}">${escapeHtml(priLabel)}</span>
+      <span class="status ${statCls}">${escapeHtml(t.status || "")}</span>
+      <button class="ticket-complete" title="Mark Done in Linear">✓ Complete</button>
+      <span class="ext">↗</span>`;
+    const btn = row.querySelector(".ticket-complete");
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      completeTicket(t.id, btn, row);
+    });
+    // Click anywhere else on the row opens Linear (in app if toggle on, else new tab).
+    row.addEventListener("click", (ev) => {
+      if (ev.target.closest(".ticket-complete")) return;
+      if (isOpenInAppsOn()) {
+        const appUrl = convertToAppUrl(t.url);
+        if (appUrl) { openProtocolUrl(appUrl); return; }
+      }
+      window.open(t.url, "_blank", "noopener");
+    });
+    el.appendChild(row);
+  }
+}
+
+// ============== Per-week loaders ==============
+async function fetchSlackForWindow(afterISO, beforeISO) {
+  const after = afterISO.slice(0, 10);
+  const before = beforeISO.slice(0, 10);
+  const dateClause = `after:${after} before:${before}`;
+  const queries = [
+    [`to:me ${dateClause}`, "im,mpim", "dm"],
+    [`<@${ME}> ${dateClause}`, "public_channel,private_channel,mpim", "mention"],
+    [`from:<@${ME}> ${dateClause}`, "public_channel,private_channel", "replied"],
+    [`(data OR "data team" OR analytics OR BigQuery OR dashboard OR forecast) ${dateClause}`,
+     "public_channel,private_channel,im,mpim", "data"]
+  ];
+  const results = await Promise.all(queries.map(([q, ct, src]) =>
+    safeCall(SLACK_SEARCH, {
+      query: q, channel_types: ct, limit: 20, sort: "timestamp",
+      response_format: "detailed", include_context: true
+    }).then(r => parseSlackResults(extractText(r), src))
+  ));
+  const all = [].concat(...results);
+  return all.filter(r => !/Google Calendar|Slackbot|notify|reminder/i.test(r.fromName || ""));
+}
+
+async function loadWeek(weekKey, offset) {
+  const range = weekRange(offset);
+  const isPast = isPastWeek(range);
+  const isFuture = isFutureWeek(range);
+  const startISO = range.start.toISOString();
+  const endISO = range.end.toISOString();
+
+  const ttl = freshnessFor(range);
+  const dateKey = startISO.slice(0, 10);
+
+  // Future week: meetings only
+  if (isFuture) {
+    const calResp = await cachedFetch(`cal:${dateKey}`, ttl,
+      () => safeCall(CAL_LIST, { startTime: startISO, endTime: endISO, pageSize: 100, orderBy: "startTime" }));
+    const events = (extractObject(calResp)?.events || []).filter(eventLooksRelevant);
+    const meetings = events.map(ev => ({
+      id: ev.id, title: ev.summary || "(untitled)",
+      when: fmtMeetingWhen(eventStart(ev)),
+      attendees: attendeeBlurb(ev),
+      htmlLink: ev.htmlLink, conferenceUrl: ev.conferenceUrl,
+      description: ev.description || "", notesUrl: null
+    }));
+    renderUpcomingMeetings(meetings, weekKey, {});
+    renderFreshness(weekKey, offset);
+    renderCacheInfo();
+    if (!meetings.length) {
+      renderWeekRecap(weekKey, null, false);
+      return;
+    }
+    const result = await synthesizeAgendas(meetings);
+    const agendasById = Object.fromEntries((result.agendas || []).map(a => [a.id, a.agenda]));
+    renderUpcomingMeetings(meetings, weekKey, agendasById);
+    renderWeekRecap(weekKey, result.week_recap, true);
+    renderSectionSummaries(weekKey, { meetings_upcoming: result?.section_summaries?.meetings_upcoming || "" });
+    return;
+  }
+
+  // Past or current week: full pipeline
+  const slackBeforeISO = (isPast ? endISO : new Date().toISOString());
+  // Gmail uses YYYY/MM/DD; Gmail's `before:` is exclusive, so add 1 day for current week
+  const gAfter = startISO.slice(0, 10).replace(/-/g, "/");
+  const gBeforeDate = new Date(isPast ? range.end : new Date());
+  gBeforeDate.setDate(gBeforeDate.getDate() + 1);
+  const gBefore = gBeforeDate.toISOString().slice(0, 10).replace(/-/g, "/");
+
+  const [slackResults, gmailResp, calResp, driveResp, ticketsResp, coworkSessions] = await Promise.all([
+    cachedFetch(`slack:${dateKey}`, ttl, () => fetchSlackForWindow(startISO, slackBeforeISO)),
+    cachedFetch(`gmail:${dateKey}`, ttl,
+      () => safeCall(GMAIL_SEARCH, { query: `in:inbox after:${gAfter} before:${gBefore}`, pageSize: 50 })),
+    cachedFetch(`cal:${dateKey}`, ttl,
+      () => safeCall(CAL_LIST, { startTime: startISO, endTime: endISO, pageSize: 100, orderBy: "startTime" })),
+    cachedFetch(`drive:${dateKey}`, ttl,
+      () => safeCall(DRIVE_RECENT, { pageSize: 50, orderBy: "lastModifiedByMe" })),
+    cachedFetch(`tickets:me`, 6 * 60 * 60_000,
+      () => safeCall(LINEAR_ISSUES, { assignee: "me", limit: 100, orderBy: "updatedAt", includeArchived: false })),
+    // Cowork sessions are recency-sorted with no timestamps — we fetch top N as a proxy for "recent work".
+    // Only fetch on This/Last week (Next week has no past activity).
+    weekKey === "next"
+      ? Promise.resolve([])
+      : cachedFetch(`cowork:${dateKey}`, ttl, () => fetchCoworkSessions(15))
+  ]);
+
+  const threads = groupByChannel(slackResults);
+  const threadsById = Object.fromEntries(threads.map(t => [t.channelId, t]));
+
+  const rawEmailThreads = (extractObject(gmailResp)?.threads || []);
+  const emails = filterAndNormalizeEmails(rawEmailThreads);
+
+  const events = (extractObject(calResp)?.events || []).filter(eventLooksRelevant);
+  const driveDocs = (extractObject(driveResp)?.files || []).filter(isMeetingNoteDoc);
+  const ticketsArr = (extractObject(ticketsResp)?.issues || []);
+
+  // Persist to IndexedDB (fire-and-forget — won't block render)
+  persistEventsToIDB({ threads, emails, events, tickets: ticketsArr }).catch(() => {});
+  persistMetricsToIDB(computeWeeklyMetrics(range.start, { threads, emails, events, tickets: ticketsArr })).catch(() => {});
+
+  // Split events into past / upcoming relative to NOW (only matters for current week)
+  const now = Date.now();
+  const pastEvents = events.filter(ev => {
+    const s = eventStart(ev);
+    return s && s.getTime() < now;
+  });
+  const upcomingEvents = events.filter(ev => {
+    const s = eventStart(ev);
+    return s && s.getTime() >= now;
+  });
+
+  const buildMeeting = (ev) => {
+    const start = eventStart(ev);
+    const matchDoc = driveDocs.find(d => {
+      const dt = (d.title || "").toLowerCase();
+      const key = (ev.summary || "").toLowerCase().trim();
+      return key && (dt.includes(key) || key.split(/\s+/).filter(w => w.length > 3).every(w => dt.includes(w)));
+    });
+    // Did Dan create this meeting in-window (= a scheduling completion)?
+    const createdAt = ev.created ? new Date(ev.created) : null;
+    const createdByMeInWindow = !!(ev.creator?.self && createdAt
+      && createdAt >= range.start && createdAt <= range.end);
+    return {
+      id: ev.id, title: ev.summary || "(untitled)",
+      when: fmtMeetingWhen(start),
+      attendees: attendeeBlurb(ev),
+      htmlLink: ev.htmlLink, conferenceUrl: ev.conferenceUrl,
+      description: ev.description || "",
+      notesUrl: matchDoc?.viewUrl || null,
+      notesSnippet: matchDoc?.contentSnippet || "",
+      createdByMeInWindow,
+      createdAt: ev.created || null
+    };
+  };
+
+  const pastMeetings = pastEvents.map(buildMeeting);
+  const upcomingMeetings = upcomingEvents.map(buildMeeting);
+
+  // Render open tickets immediately — they don't need synthesis
+  const openTickets = filterAndSortTickets(extractObject(ticketsResp)?.issues || []);
+  renderTickets(openTickets, weekKey);
+
+  // Render memory.md sections (only on This week tab; uses calendar events for Today's context)
+  if (weekKey === "this") {
+    renderOptioMemorySections(events).catch(e => console.warn("memory render failed", e));
+  }
+
+  // Initial render with placeholders
+  const empty = {};
+  if (weekKey === "this") renderUrgent(threads, emails, empty, empty, weekKey);
+  renderConvos(threads, empty, weekKey);
+  renderEmails(emails, empty, weekKey);
+  renderPastMeetings(pastMeetings, threads, empty, weekKey, {});
+  if (weekKey === "this") renderUpcomingMeetings(upcomingMeetings, weekKey, {});
+  renderFreshness(weekKey, offset);
+  renderCacheInfo();
+  if (weekKey === "this" || weekKey === "last") {
+    const linEl = document.getElementById(`${weekKey}-linear`);
+    if (linEl) linEl.innerHTML = `<div class="empty">Synthesizing…</div>`;
+  }
+
+  if (!threads.length && !emails.length && !pastMeetings.length && !upcomingMeetings.length) {
+    renderWeekRecap(weekKey, null, false);
+    return;
+  }
+
+  const synth = await synthesize(threads, emails, pastMeetings, upcomingMeetings, coworkSessions, weekKey);
+  const threadMeta = Object.fromEntries((synth.threads || []).map(t => [t.id, t]));
+  const emailMeta = Object.fromEntries((synth.emails || []).map(e => [e.id, e]));
+  const summariesById = Object.fromEntries((synth.meeting_summaries || []).map(s => [s.id, s.summary]));
+  const agendasById = Object.fromEntries((synth.meeting_agendas || []).map(a => [a.id, a.agenda]));
+
+  if (weekKey === "this") renderUrgent(threads, emails, threadMeta, emailMeta, weekKey);
+  renderConvos(threads, threadMeta, weekKey);
+  renderEmails(emails, emailMeta, weekKey);
+  renderPastMeetings(pastMeetings, threads, threadMeta, weekKey, summariesById);
+  if (weekKey === "this") renderUpcomingMeetings(upcomingMeetings, weekKey, agendasById);
+  const emailsById = Object.fromEntries(emails.map(e => [e.threadId, e]));
+  renderLinear(synth.linear_actions || [], threadsById, weekKey);
+  renderCompleted(synth.completed_actions || [], threadsById, emailsById, weekKey);
+  renderWeekRecap(weekKey, synth.week_recap, true);
+  renderSectionSummaries(weekKey, synth.section_summaries || {});
+  if (weekKey === "this") {
+    // Support both new (next_actions plural) and legacy (next_action singular) shapes
+    const actions = synth.next_actions || (synth.next_action ? [synth.next_action] : []);
+    renderNextActions(weekKey, actions);
+  }
+  renderCacheInfo();
+}
+
+// ============== Tabs ==============
+const WEEKS = [
+  { key: "timeline", label: "Timeline", offset: 0, isTimeline: true },
+  { key: "last", label: "Last week", offset: -1 },
+  { key: "this", label: "This week", offset: 0 },
+  { key: "next", label: "Next week", offset: 1 }
+];
+const loadedTabs = new Set();
+
+function setActiveTab(key) {
+  for (const w of WEEKS) {
+    document.querySelector(`.tab-content[data-week="${w.key}"]`)?.classList.toggle("active", w.key === key);
+    document.querySelector(`.tab[data-week="${w.key}"]`)?.classList.toggle("active", w.key === key);
+  }
+  localStorage.setItem(ACTIVE_TAB_KEY, key);
+  if (!loadedTabs.has(key)) {
+    loadedTabs.add(key);
+    const w = WEEKS.find(x => x.key === key);
+    if (w.isTimeline) {
+      loadTimeline().catch(e => console.error("loadTimeline failed", e));
+    } else {
+      loadWeek(key, w.offset).catch(e => console.error("loadWeek failed", key, e));
+    }
+  }
+}
+
+function buildTabs() {
+  const nav = document.getElementById("tabs");
+  nav.innerHTML = "";
+  for (const w of WEEKS) {
+    const btn = document.createElement("button");
+    btn.className = "tab"; btn.dataset.week = w.key;
+    if (w.isTimeline) {
+      btn.innerHTML = `<div class="label">${w.label}</div><div class="range">activity feed</div>`;
+    } else {
+      const r = weekRange(w.offset);
+      btn.innerHTML = `<div class="label">${w.label}</div><div class="range">${fmtDateRange(r.start, r.end)}</div>`;
+    }
+    btn.addEventListener("click", () => setActiveTab(w.key));
+    nav.appendChild(btn);
+  }
+}
+
+// ============== Section summaries (hierarchical rollups) ==============
+// Map of which UI section each summary key belongs to. Keyed by the H2 element's ID anchor.
+// We attach the summary as a `.section-summary` div between the H2 and its body.
+const SECTION_SUMMARY_MAP = {
+  // headerId pattern: section data attribute
+  // We match by H2 textContent prefix instead, simpler.
+};
+function ensureSectionSummaryEl(headerEl) {
+  let el = headerEl.nextElementSibling;
+  // Skip past existing .section-summary if present
+  if (el && el.classList?.contains("section-summary")) return el;
+  const div = document.createElement("div");
+  div.className = "section-summary empty";
+  headerEl.parentNode.insertBefore(div, el);
+  return div;
+}
+function setSectionSummary(headerEl, text) {
+  const el = ensureSectionSummaryEl(headerEl);
+  if (text && text.trim()) {
+    el.textContent = text.trim();
+    el.classList.remove("empty");
+  } else {
+    el.textContent = "";
+    el.classList.add("empty");
+  }
+}
+function findHeader(weekKey, prefix) {
+  const tab = document.querySelector(`.tab-content[data-week="${weekKey}"]`);
+  if (!tab) return null;
+  for (const h of tab.querySelectorAll("h2")) {
+    if ((h.textContent || "").trim().toLowerCase().startsWith(prefix.toLowerCase())) return h;
+  }
+  return null;
+}
+function renderSectionSummaries(weekKey, summaries) {
+  if (!summaries) summaries = {};
+  const map = [
+    ["Needs reply", null],
+    ["Conversations", summaries.conversations],
+    ["Email threads", summaries.email],
+    ["Past meetings", summaries.meetings_past],
+    ["Meetings", summaries.meetings_past], // last-week tab uses 'Meetings'
+    ["Upcoming meetings", summaries.meetings_upcoming],
+    ["Action items", summaries.open_work],
+    ["Completed (untracked)", summaries.completed]
+  ];
+  for (const [prefix, text] of map) {
+    const h = findHeader(weekKey, prefix);
+    if (h) setSectionSummary(h, text);
+  }
+}
+
+// ============== Freshness / refresh ==============
+function dataKeyForWeek(weekKey, offset) {
+  return weekRange(offset).start.toISOString().slice(0, 10);
+}
+function refreshableCacheKeys(dateKey) {
+  return [`slack:${dateKey}`, `gmail:${dateKey}`, `cal:${dateKey}`, `drive:${dateKey}`, `cowork:${dateKey}`];
+}
+function oldestCacheTs(dateKey) {
+  let oldest = null;
+  for (const name of refreshableCacheKeys(dateKey)) {
+    const hit = cacheGet(name, Infinity);
+    if (hit && (oldest == null || hit.ts < oldest)) oldest = hit.ts;
+  }
+  return oldest;
+}
+function fmtAbsEst(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short", month: "short", day: "numeric",
+    hour: "numeric", minute: "2-digit", hour12: true
+  }) + " EST";
+}
+function renderFreshness(weekKey, offset) {
+  const el = document.getElementById(`${weekKey}-freshness`);
+  if (!el) return;
+  const dateKey = dataKeyForWeek(weekKey, offset);
+  const ts = oldestCacheTs(dateKey);
+  const ageStr = ts
+    ? `Last refreshed ${fmtAbsEst(ts)} · ${fmtAge(Date.now() - ts)}`
+    : "Loading…";
+  el.innerHTML = `<span>${escapeHtml(ageStr)}</span><button class="refresh-btn">Refresh</button>`;
+  el.querySelector(".refresh-btn").addEventListener("click", () => refreshWeek(weekKey, offset));
+}
+async function refreshWeek(weekKey, offset) {
+  const dateKey = dataKeyForWeek(weekKey, offset);
+  // Clear data caches and any synth caches for this week
+  for (const k of refreshableCacheKeys(dateKey)) cacheClear(k);
+  cacheClear("tickets:me");
+  cacheClear(`synth:${weekKey}:`);
+  if (weekKey === "next") cacheClear(`synth:next:`);
+  // Reset rendered placeholders
+  for (const id of [`${weekKey}-summary`, `${weekKey}-urgent`, `${weekKey}-convos`, `${weekKey}-emails`,
+                    `${weekKey}-past`, `${weekKey}-meetings`, `${weekKey}-upcoming`, `${weekKey}-linear`,
+                    `${weekKey}-done`, `${weekKey}-next-up`]) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<div class="skeleton"></div>`;
+  }
+  await loadWeek(weekKey, offset);
+  renderFreshness(weekKey, offset);
+  renderCacheInfo();
+}
+
+// ============== Cache info footer ==============
+async function renderCacheInfo() {
+  const status = document.getElementById("cache-status");
+  if (!status) return;
+  const bytes = cacheTotalBytes();
+  const count = cacheKeys().length;
+  const idb = await idbCountEvents();
+  const oldestStr = idb.oldest
+    ? new Date(idb.oldest).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+    : "—";
+  status.textContent = `Cache: ${fmtBytes(bytes)} across ${count} entries · IndexedDB: ${idb.count} events stored, oldest ${oldestStr} · 6h refresh window`;
+}
+function wireClearCache() {
+  const a = document.getElementById("clear-cache");
+  if (!a) return;
+  a.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const choice = confirm("Clear caches and reload?\n\nOK = clear localStorage cache only (keep IndexedDB history).\nCancel = leave everything as-is.\n\n(To clear IndexedDB history too, hold Shift while clicking.)");
+    if (!choice) return;
+    cacheClear("");
+    if (e.shiftKey) await idbClearAll();
+    renderCacheInfo();
+    location.reload();
+  });
+}
+
+// ============== Collapsible sections ==============
+function sectionKey(headerEl) {
+  // Stable key derived from heading text + parent tab so it's consistent across reloads.
+  const tab = headerEl.closest(".tab-content")?.dataset.week || "x";
+  const label = (headerEl.textContent || "").replace(/\s+/g, " ").trim().split(/\s/).slice(0, 4).join(" ");
+  return `${tab}::${label}`;
+}
+function setupCollapsibles() {
+  // Sections are COLLAPSED by default; only those whose key is in EXPANDED_KEY are open.
+  const expanded = lsGetSet(EXPANDED_KEY);
+  for (const h of document.querySelectorAll(".tab-content h2")) {
+    // Skip if this h2 lives inside the timeline tab content area (timeline doesn't use h2 sections)
+    if (h.closest('.tab-content[data-week="timeline"]')) continue;
+    // Inject chevron if not present
+    if (!h.querySelector(".chevron")) {
+      const chev = document.createElement("span");
+      chev.className = "chevron"; chev.textContent = "▾";
+      h.insertBefore(chev, h.firstChild);
+    }
+    // Mark sibling body
+    const body = h.nextElementSibling;
+    if (body && !body.classList.contains("section-body")) body.classList.add("section-body");
+    const key = sectionKey(h);
+    if (!expanded.has(key)) {
+      // Default = collapsed
+      h.classList.add("collapsed");
+      body?.classList.add("collapsed");
+    }
+    h.addEventListener("click", () => {
+      const set = lsGetSet(EXPANDED_KEY);
+      if (h.classList.contains("collapsed")) {
+        h.classList.remove("collapsed"); body?.classList.remove("collapsed"); set.add(key);
+      } else {
+        h.classList.add("collapsed"); body?.classList.add("collapsed"); set.delete(key);
+      }
+      lsSetSet(EXPANDED_KEY, set);
+    });
+  }
+}
+
+// ============== Timeline ==============
+const TL_RANGE_KEY = "wd:tl-range";
+let tlSelectedItems = []; // for prev/next nav in detail pane
+let tlSelectedIndex = -1;
+
+function tlGetRange() { return localStorage.getItem(TL_RANGE_KEY) || "this"; }
+function tlSetRange(v) { localStorage.setItem(TL_RANGE_KEY, v); }
+
+function tlComputeBounds(rangeKey) {
+  if (rangeKey === "last") return weekRange(-1);
+  if (rangeKey === "this") return weekRange(0);
+  const days = ({ "14d": 14, "30d": 30, "90d": 90 })[rangeKey];
+  if (days) {
+    const end = new Date(); end.setHours(23,59,59,999);
+    const start = new Date(end); start.setDate(end.getDate() - (days - 1)); start.setHours(0,0,0,0);
+    return { start, end };
+  }
+  // Drill-down: rangeKey of form "day:YYYY-MM-DD"
+  if (rangeKey && rangeKey.startsWith("day:")) {
+    const iso = rangeKey.slice(4);
+    const start = new Date(iso + "T00:00:00");
+    const end = new Date(iso + "T23:59:59.999");
+    return { start, end };
+  }
+  return weekRange(0);
+}
+function tlIsHistoryRange(rangeKey) {
+  return rangeKey === "30d" || rangeKey === "90d" || (rangeKey && rangeKey.startsWith("day:"));
+}
+function tlIsDayRange(rangeKey) {
+  return rangeKey && rangeKey.startsWith("day:");
+}
+
+function tlPctFor(date, bounds) {
+  const t = date.getTime();
+  const total = bounds.end.getTime() - bounds.start.getTime();
+  if (total <= 0) return 0;
+  return Math.max(0, Math.min(100, ((t - bounds.start.getTime()) / total) * 100));
+}
+
+async function loadTimelineDataForWeek(offset) {
+  // Reuses the existing per-source caches via cachedFetch with current freshness rules.
+  const range = weekRange(offset);
+  const ttl = freshnessFor(range);
+  const dateKey = range.start.toISOString().slice(0,10);
+  const startISO = range.start.toISOString();
+  const endISO = range.end.toISOString();
+  const isPast = isPastWeek(range);
+  const slackBeforeISO = isPast ? endISO : new Date().toISOString();
+  const gAfter = startISO.slice(0, 10).replace(/-/g, "/");
+  const gBeforeDate = new Date(isPast ? range.end : new Date());
+  gBeforeDate.setDate(gBeforeDate.getDate() + 1);
+  const gBefore = gBeforeDate.toISOString().slice(0, 10).replace(/-/g, "/");
+
+  const [slackResults, gmailResp, calResp, ticketsResp] = await Promise.all([
+    cachedFetch(`slack:${dateKey}`, ttl, () => fetchSlackForWindow(startISO, slackBeforeISO)),
+    cachedFetch(`gmail:${dateKey}`, ttl,
+      () => safeCall(GMAIL_SEARCH, { query: `in:inbox after:${gAfter} before:${gBefore}`, pageSize: 50 })),
+    cachedFetch(`cal:${dateKey}`, ttl,
+      () => safeCall(CAL_LIST, { startTime: startISO, endTime: endISO, pageSize: 100, orderBy: "startTime" })),
+    cachedFetch(`tickets:me`, 6 * 60 * 60_000,
+      () => safeCall(LINEAR_ISSUES, { assignee: "me", limit: 100, orderBy: "updatedAt", includeArchived: false }))
+  ]);
+
+  const threads = groupByChannel(slackResults);
+  const emails = filterAndNormalizeEmails((extractObject(gmailResp)?.threads || []));
+  const events = (extractObject(calResp)?.events || []).filter(eventLooksRelevant);
+  const tickets = (extractObject(ticketsResp)?.issues || []);
+  // Persist metrics for this week (fire-and-forget)
+  persistMetricsToIDB(computeWeeklyMetrics(range.start, { threads, emails, events, tickets })).catch(() => {});
+  return { range, threads, emails, events, tickets };
+}
+
+async function loadTimeline() {
+  const rangeKey = tlGetRange();
+  // Show/hide drill-back banner
+  let drillBanner = document.getElementById("tl-drill-banner");
+  if (!drillBanner) {
+    drillBanner = document.createElement("div");
+    drillBanner.id = "tl-drill-banner";
+    drillBanner.className = "tl-drill-banner";
+    document.querySelector('.tab-content[data-week="timeline"] .tl-frame').before(drillBanner);
+  }
+  if (tlIsDayRange(rangeKey)) {
+    const iso = rangeKey.slice(4);
+    const day = new Date(iso + "T00:00:00");
+    drillBanner.style.display = "flex";
+    drillBanner.innerHTML = `
+      <button class="tl-back-btn">← Back to week</button>
+      <span class="tl-drill-title">${day.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</span>`;
+    drillBanner.querySelector(".tl-back-btn").addEventListener("click", () => {
+      tlSetRange("this");
+      loadTimeline();
+    });
+  } else {
+    drillBanner.style.display = "none";
+  }
+  for (const btn of document.querySelectorAll("#tl-range .tl-range-btn")) {
+    btn.classList.toggle("active", btn.dataset.range === rangeKey);
+    if (!btn._wired) {
+      btn._wired = true;
+      btn.addEventListener("click", () => {
+        tlSetRange(btn.dataset.range);
+        loadTimeline();
+      });
+    }
+  }
+  const bounds = tlComputeBounds(rangeKey);
+  const canvas = document.getElementById("tl-canvas");
+  for (const lane of canvas.querySelectorAll(".tl-lane")) lane.innerHTML = "";
+  wireBackfill();
+
+  // Render metrics panel (always, regardless of range)
+  const metricsPromise = (async () => {
+    const m = await aggregateMetricsForRange(bounds.start, bounds.end);
+    const [unread, openLinear] = await Promise.all([
+      fetchUnreadEmailCount().catch(() => null),
+      fetchOpenLinearCount().catch(() => null)
+    ]);
+    renderMetricsPanel(m, unread, openLinear);
+  })();
+
+  // For long-history ranges, query IndexedDB only — no live fetch.
+  if (tlIsHistoryRange(rangeKey)) {
+    const idbEvents = await idbGetEventsByRange(bounds.start, bounds.end);
+    renderTimelineFromEvents(bounds, idbEvents);
+    await metricsPromise;
+    return;
+  }
+
+  // Live ranges: fetch via existing per-week loaders + IDB persist
+  let buckets = [];
+  if (rangeKey === "14d") {
+    buckets = await Promise.all([loadTimelineDataForWeek(0), loadTimelineDataForWeek(-1)]);
+  } else if (rangeKey === "last") {
+    buckets = [await loadTimelineDataForWeek(-1)];
+  } else {
+    buckets = [await loadTimelineDataForWeek(0)];
+  }
+
+  const allThreads = [], allEmails = [], allEvents = [];
+  const ticketsSeen = new Set();
+  const allTickets = [];
+  for (const b of buckets) {
+    for (const t of b.threads) allThreads.push(t);
+    for (const e of b.emails) allEmails.push(e);
+    for (const ev of b.events) allEvents.push(ev);
+    for (const i of b.tickets) {
+      if (ticketsSeen.has(i.id)) continue;
+      ticketsSeen.add(i.id);
+      allTickets.push(i);
+    }
+  }
+  // Persist to IDB so longer history grows naturally
+  persistEventsToIDB({ threads: allThreads, emails: allEmails, events: allEvents, tickets: allTickets }).catch(() => {});
+  renderTimeline(bounds, allThreads, allEmails, allEvents, allTickets);
+  // Re-aggregate metrics now that this week is freshly persisted
+  setTimeout(() => {
+    aggregateMetricsForRange(bounds.start, bounds.end).then(m => {
+      Promise.all([
+        fetchUnreadEmailCount().catch(() => null),
+        fetchOpenLinearCount().catch(() => null)
+      ]).then(([unread, openLinear]) => renderMetricsPanel(m, unread, openLinear));
+    });
+  }, 200);
+}
+
+// Renders the timeline directly from flat IDB events (used for 30/90 day history).
+function renderTimelineFromEvents(bounds, idbEvents) {
+  const items = (idbEvents || []).map(e => {
+    const lane = (e.source === "linear_created" || e.source === "linear_completed") ? "linear" : e.source;
+    return {
+      kind: e.source.startsWith("linear") ? "linear" : e.source,
+      lane,
+      date: new Date(e.timestamp),
+      endDate: e.endTimestamp ? new Date(e.endTimestamp) : undefined,
+      declined: !!e.declined,
+      ticketAction: e.source === "linear_created" ? "created" : (e.source === "linear_completed" ? "completed" : undefined),
+      title: e.title,
+      subject: e.subject || "",
+      body: e.body || "",
+      who: (e.people && e.people[0]) || "",
+      url: e.url
+    };
+  }).sort((a, b) => a.date - b.date);
+
+  const canvas = document.getElementById("tl-canvas");
+  for (const lane of canvas.querySelectorAll(".tl-lane")) lane.innerHTML = "";
+
+  const lanes = { slack: [], email: [], meeting: [], linear: [] };
+  for (const it of items) (lanes[it.lane] || []).push(it);
+
+  for (const [laneName, laneItems] of Object.entries(lanes)) {
+    const laneEl = canvas.querySelector(`.tl-lane[data-lane="${laneName}"]`);
+    if (!laneEl) continue;
+    if (laneName === "meeting") {
+      for (const m of laneItems) {
+        const startPct = tlPctFor(m.date, bounds);
+        const endPct = m.endDate ? tlPctFor(m.endDate, bounds) : startPct + 0.3;
+        const widthPct = Math.max(0.3, endPct - startPct);
+        const block = document.createElement("div");
+        block.className = "tl-meeting-block" + (m.declined ? " declined" : "");
+        block.style.left = startPct + "%";
+        block.style.width = widthPct + "%";
+        block.title = `${m.title} — ${m.date.toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}`;
+        block.addEventListener("click", () => selectTlItem(m));
+        laneEl.appendChild(block);
+      }
+      continue;
+    }
+    // Cluster threshold tighter for long ranges (more events per pixel).
+    const sorted = laneItems.slice().sort((a, b) => a.date - b.date);
+    const clusters = [];
+    let cluster = [];
+    const clusterPct = bounds.end - bounds.start > 30 * 24 * 3600_000 ? 0.6 : 1.6;
+    for (const it of sorted) {
+      if (!cluster.length) { cluster = [it]; continue; }
+      const lastPct = tlPctFor(cluster[cluster.length - 1].date, bounds);
+      const itPct = tlPctFor(it.date, bounds);
+      if (itPct - lastPct < clusterPct) cluster.push(it);
+      else { clusters.push(cluster); cluster = [it]; }
+    }
+    if (cluster.length) clusters.push(cluster);
+    for (const c of clusters) {
+      if (c.length === 1) {
+        const it = c[0];
+        const dot = document.createElement("div");
+        dot.className = `tl-item ${it.lane}` + (it.ticketAction ? ` ${it.ticketAction}` : "");
+        dot.style.left = tlPctFor(it.date, bounds) + "%";
+        dot.title = `${it.title} — ${it.date.toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}`;
+        dot.textContent = laneIcon(it);
+        dot.addEventListener("click", () => selectTlItem(it));
+        laneEl.appendChild(dot);
+      } else {
+        const midDate = new Date(c.reduce((s, x) => s + x.date.getTime(), 0) / c.length);
+        const dot = document.createElement("div");
+        dot.className = `tl-item cluster ${c[0].lane}`;
+        dot.style.left = tlPctFor(midDate, bounds) + "%";
+        dot.style.background = ({ slack: "#0a5ed3", email: "#d4314a", linear: "#1f7a3a" })[c[0].lane] || "#6e6e73";
+        dot.textContent = c.length;
+        dot.title = `${c.length} ${c[0].lane} items between ${c[0].date.toLocaleDateString()} and ${c[c.length-1].date.toLocaleDateString()}`;
+        dot.addEventListener("click", () => selectTlItem(c[0], c));
+        laneEl.appendChild(dot);
+      }
+    }
+  }
+
+  const todayEl = document.getElementById("tl-today");
+  const now = new Date();
+  if (now >= bounds.start && now <= bounds.end) {
+    todayEl.style.display = "block";
+    todayEl.style.left = tlPctFor(now, bounds) + "%";
+  } else {
+    todayEl.style.display = "none";
+  }
+  renderTlDayAxis(bounds);
+  tlSelectedItems = items;
+  tlSelectedIndex = -1;
+  document.getElementById("tl-detail").innerHTML = items.length
+    ? `<span class="tl-detail-empty">${items.length} events from your local history. Click any event to see details.</span>`
+    : `<span class="tl-detail-empty">No events stored for this range yet. Use the weekly tabs to populate history — events accumulate as you browse.</span>`;
+}
+
+function renderTimeline(bounds, threads, emails, events, tickets) {
+  const items = [];
+  // Slack threads
+  for (const t of threads) {
+    const ts = new Date(t.latestTs * 1000);
+    if (ts < bounds.start || ts > bounds.end) continue;
+    items.push({
+      kind: "slack", lane: "slack", date: ts,
+      title: displayWho(t),
+      subject: "",
+      body: (t.latestText || "").slice(0, 400),
+      who: t.latestFromId === ME ? "you" : (t.latestFrom || "—"),
+      url: t.latestPermalink
+    });
+  }
+  // Emails
+  for (const e of emails) {
+    const ts = new Date(e.latestTs * 1000);
+    if (ts < bounds.start || ts > bounds.end) continue;
+    items.push({
+      kind: "email", lane: "email", date: ts,
+      title: emailDisplayWho(e),
+      subject: e.subject || "",
+      body: e.latestSnippet || "",
+      who: e.latestFromMe ? "you" : (e.latestFromName || "—"),
+      url: e.permalink
+    });
+  }
+  // Meetings (rendered as time-blocks)
+  const meetingItems = [];
+  for (const ev of events) {
+    const start = eventStart(ev);
+    if (!start) continue;
+    if (start < bounds.start || start > bounds.end) continue;
+    const endRaw = ev.end?.dateTime || ev.end?.date;
+    const endDate = endRaw ? new Date(endRaw) : new Date(start.getTime() + 30*60_000);
+    const declined = (ev.attendees || []).find(a => a.self)?.responseStatus === "declined";
+    const m = {
+      kind: "meeting", lane: "meeting", date: start,
+      endDate, declined,
+      title: ev.summary || "(untitled)",
+      subject: attendeeBlurb(ev),
+      body: stripHtml(ev.description || "").slice(0, 500),
+      who: "",
+      url: ev.htmlLink
+    };
+    items.push(m); meetingItems.push(m);
+  }
+  // Linear ticket events: created + completed within bounds
+  for (const t of tickets) {
+    if (t.createdAt) {
+      const ts = new Date(t.createdAt);
+      if (ts >= bounds.start && ts <= bounds.end) {
+        items.push({
+          kind: "linear", lane: "linear", date: ts, ticketAction: "created",
+          title: `Created ${t.id}`,
+          subject: t.title,
+          body: t.description || "",
+          who: t.createdBy || "",
+          url: t.url
+        });
+      }
+    }
+    if (t.completedAt) {
+      const ts = new Date(t.completedAt);
+      if (ts >= bounds.start && ts <= bounds.end) {
+        items.push({
+          kind: "linear", lane: "linear", date: ts, ticketAction: "completed",
+          title: `Completed ${t.id}`,
+          subject: t.title,
+          body: t.description || "",
+          who: t.assignee || "",
+          url: t.url
+        });
+      }
+    }
+  }
+  items.sort((a, b) => a.date - b.date);
+
+  // Render lanes
+  const canvas = document.getElementById("tl-canvas");
+  for (const lane of canvas.querySelectorAll(".tl-lane")) lane.innerHTML = "";
+
+  // Group items per lane and cluster nearby ones
+  const lanes = { slack: [], email: [], meeting: [], linear: [] };
+  for (const it of items) lanes[it.lane].push(it);
+
+  for (const [laneName, laneItems] of Object.entries(lanes)) {
+    const laneEl = canvas.querySelector(`.tl-lane[data-lane="${laneName}"]`);
+    if (!laneEl) continue;
+    // For meetings, render as blocks (have duration)
+    if (laneName === "meeting") {
+      for (const m of laneItems) {
+        const startPct = tlPctFor(m.date, bounds);
+        const endPct = tlPctFor(m.endDate, bounds);
+        const widthPct = Math.max(0.3, endPct - startPct);
+        const block = document.createElement("div");
+        block.className = "tl-meeting-block" + (m.declined ? " declined" : "");
+        block.style.left = startPct + "%";
+        block.style.width = widthPct + "%";
+        block.title = `${m.title} — ${m.date.toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}`;
+        block.addEventListener("click", () => selectTlItem(m));
+        laneEl.appendChild(block);
+      }
+      continue;
+    }
+    // For other lanes, cluster items that are < 2% apart (in viewport space)
+    const sorted = laneItems.slice().sort((a, b) => a.date - b.date);
+    let cluster = [];
+    const clusters = [];
+    for (const it of sorted) {
+      if (!cluster.length) { cluster = [it]; continue; }
+      const lastPct = tlPctFor(cluster[cluster.length - 1].date, bounds);
+      const itPct = tlPctFor(it.date, bounds);
+      if (itPct - lastPct < 1.6) cluster.push(it);
+      else { clusters.push(cluster); cluster = [it]; }
+    }
+    if (cluster.length) clusters.push(cluster);
+    for (const c of clusters) {
+      if (c.length === 1) {
+        const it = c[0];
+        const dot = document.createElement("div");
+        dot.className = `tl-item ${it.lane}` + (it.ticketAction ? ` ${it.ticketAction}` : "");
+        dot.style.left = tlPctFor(it.date, bounds) + "%";
+        dot.title = `${it.title} — ${it.date.toLocaleString(undefined,{weekday:"short",hour:"numeric",minute:"2-digit"})}`;
+        dot.textContent = laneIcon(it);
+        dot.addEventListener("click", () => selectTlItem(it));
+        laneEl.appendChild(dot);
+      } else {
+        // Cluster
+        const midDate = new Date(c.reduce((s, x) => s + x.date.getTime(), 0) / c.length);
+        const dot = document.createElement("div");
+        dot.className = `tl-item cluster ${c[0].lane}`;
+        dot.style.left = tlPctFor(midDate, bounds) + "%";
+        dot.style.background = ({ slack: "#0a5ed3", email: "#d4314a", linear: "#1f7a3a" })[c[0].lane] || "#6e6e73";
+        dot.textContent = c.length;
+        dot.title = `${c.length} ${c[0].lane} items between ${c[0].date.toLocaleString(undefined,{weekday:"short",hour:"numeric"})} and ${c[c.length-1].date.toLocaleString(undefined,{weekday:"short",hour:"numeric"})}`;
+        dot.addEventListener("click", () => selectTlItem(c[0], c));
+        laneEl.appendChild(dot);
+      }
+    }
+  }
+
+  // Today line
+  const todayEl = document.getElementById("tl-today");
+  const now = new Date();
+  if (now >= bounds.start && now <= bounds.end) {
+    todayEl.style.display = "block";
+    todayEl.style.left = tlPctFor(now, bounds) + "%";
+  } else {
+    todayEl.style.display = "none";
+  }
+
+  // Day axis
+  renderTlDayAxis(bounds);
+
+  // Reset selection
+  tlSelectedItems = items;
+  tlSelectedIndex = -1;
+  document.getElementById("tl-detail").innerHTML =
+    items.length
+      ? `<span class="tl-detail-empty">Click any event on the timeline to see details. ${items.length} events in range.</span>`
+      : `<span class="tl-detail-empty">No activity in this range.</span>`;
+}
+
+function laneIcon(it) {
+  if (it.lane === "slack") return "💬";
+  if (it.lane === "email") return "✉";
+  if (it.lane === "linear") return it.ticketAction === "completed" ? "✓" : "+";
+  return "•";
+}
+
+function renderTlDayAxis(bounds) {
+  const axisEl = document.getElementById("tl-day-axis");
+  axisEl.innerHTML = "";
+  axisEl.style.position = "";
+  const totalMs = bounds.end.getTime() - bounds.start.getTime();
+  const dayMs = 24 * 3600_000;
+  const totalDays = Math.ceil(totalMs / dayMs);
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Single-day drill: render hour ticks (6am, 8am, …, 8pm)
+  if (totalMs <= dayMs + 1000) {
+    axisEl.style.position = "relative";
+    const inner = document.createElement("div");
+    inner.style.cssText = "position:relative;height:30px;width:100%";
+    axisEl.appendChild(inner);
+    const dayStart = new Date(bounds.start);
+    for (let h = 6; h <= 20; h += 2) {
+      const t = new Date(dayStart); t.setHours(h, 0, 0, 0);
+      const pct = tlPctFor(t, bounds);
+      const tick = document.createElement("div");
+      const label = h === 12 ? "noon" : h < 12 ? `${h}am` : h === 12 ? "12pm" : `${h-12}pm`;
+      tick.style.cssText = `position:absolute;left:${pct}%;top:0;transform:translateX(-50%);font-size:10px;color:#6e6e73;padding:6px 4px 0;white-space:nowrap`;
+      tick.textContent = label;
+      inner.appendChild(tick);
+    }
+    return;
+  }
+
+  if (totalDays <= 14) {
+    // Per-day cells, clickable for drill-down
+    for (let i = 0; i < totalDays; i++) {
+      const d = new Date(bounds.start.getTime() + i * dayMs);
+      d.setHours(0,0,0,0);
+      const isToday = d.getTime() === today.getTime();
+      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+      const cell = document.createElement("div");
+      cell.className = "tl-day" + (isToday ? " today" : "") + (isWeekend ? " weekend" : "");
+      cell.innerHTML = `
+        <div class="day-of-week">${d.toLocaleDateString(undefined,{weekday:"short"})}</div>
+        <div class="day-num">${d.getDate()}</div>`;
+      cell.style.cursor = "pointer";
+      cell.title = "Click to drill into hourly view for this day";
+      const isoDay = d.toISOString().slice(0,10);
+      cell.addEventListener("click", () => {
+        tlSetRange("day:" + isoDay);
+        loadTimeline();
+      });
+      axisEl.appendChild(cell);
+    }
+    return;
+  }
+  // For 30/90 day ranges, group by week (Mondays)
+  axisEl.style.position = "relative";
+  axisEl.innerHTML = `<div style="position:relative;height:30px;width:100%"></div>`;
+  const inner = axisEl.firstElementChild;
+  // Find first Monday >= bounds.start
+  const cursor = new Date(bounds.start);
+  cursor.setHours(0,0,0,0);
+  const dow = cursor.getDay();
+  const offsetToMon = (dow === 0 ? 1 : (dow === 1 ? 0 : 8 - dow));
+  cursor.setDate(cursor.getDate() + offsetToMon);
+  while (cursor <= bounds.end) {
+    const pct = tlPctFor(cursor, bounds);
+    const isToday = cursor.getTime() === today.getTime();
+    const tick = document.createElement("div");
+    tick.style.position = "absolute";
+    tick.style.left = pct + "%";
+    tick.style.top = "0";
+    tick.style.transform = "translateX(-50%)";
+    tick.style.fontSize = "10px";
+    tick.style.color = isToday ? "#d4314a" : "#6e6e73";
+    tick.style.fontWeight = isToday ? "600" : "500";
+    tick.style.whiteSpace = "nowrap";
+    tick.style.padding = "6px 4px 0";
+    tick.innerHTML = `<div>${cursor.toLocaleDateString(undefined,{month:"short",day:"numeric"})}</div>`;
+    inner.appendChild(tick);
+    cursor.setDate(cursor.getDate() + 7);
+  }
+}
+
+function selectTlItem(it, cluster = null) {
+  // Highlight the selected dot
+  for (const el of document.querySelectorAll(".tl-item.selected, .tl-meeting-block.selected")) {
+    el.classList.remove("selected");
+  }
+  // Find by url match (best heuristic) — simple visual indication
+  for (const el of document.querySelectorAll(".tl-item, .tl-meeting-block")) {
+    if (el.title && it.title && el.title.startsWith(it.title)) { el.classList.add("selected"); break; }
+  }
+  tlSelectedIndex = tlSelectedItems.indexOf(it);
+  renderTlDetail(it, cluster);
+}
+
+function renderTlDetail(it, cluster = null) {
+  const el = document.getElementById("tl-detail");
+  const when = it.date.toLocaleString(undefined, {
+    weekday: "long", month: "short", day: "numeric",
+    hour: "numeric", minute: "2-digit"
+  });
+  const kindLabel = ({ slack: "Slack", email: "Email", meeting: "Meeting", linear: "Linear" })[it.kind] || it.kind;
+  const subjectLine = it.subject ? `<div class="subject">${escapeHtml(it.subject)}</div>` : "";
+  const bodyLine = it.body ? `<div class="body">${escapeHtml(it.body)}</div>` : "";
+  const whoLine = it.who ? ` · ${escapeHtml(it.who)}` : "";
+  const link = it.url ? `<a href="${it.url}" target="_blank" rel="noopener">Open in ${kindLabel} ↗</a>` : "";
+  const clusterNote = cluster && cluster.length > 1
+    ? `<span style="color:#6e6e73">· part of ${cluster.length} clustered events</span>` : "";
+  const total = tlSelectedItems.length;
+  const hasPrev = tlSelectedIndex > 0;
+  const hasNext = tlSelectedIndex >= 0 && tlSelectedIndex < total - 1;
+  el.innerHTML = `<div class="tl-detail-card">
+    <div class="head">
+      <span class="who">${escapeHtml(it.title)}${whoLine}</span>
+      <span class="when">${escapeHtml(when)}</span>
+    </div>
+    ${subjectLine}
+    ${bodyLine}
+    <div class="footer">
+      ${link}
+      <span style="color:#6e6e73">${escapeHtml(kindLabel)}</span>
+      ${clusterNote}
+      <div class="nav" style="margin-left:auto">
+        <button id="tl-prev" ${hasPrev ? "" : "disabled"}>← Prev</button>
+        <button id="tl-next" ${hasNext ? "" : "disabled"}>Next →</button>
+      </div>
+    </div>
+  </div>`;
+  document.getElementById("tl-prev")?.addEventListener("click", () => {
+    if (tlSelectedIndex > 0) selectTlItem(tlSelectedItems[tlSelectedIndex - 1]);
+  });
+  document.getElementById("tl-next")?.addEventListener("click", () => {
+    if (tlSelectedIndex < tlSelectedItems.length - 1) selectTlItem(tlSelectedItems[tlSelectedIndex + 1]);
+  });
+}
+
+// ============== Metrics dashboard ==============
+async function aggregateMetricsForRange(start, end) {
+  const all = await idbGetAllMetrics();
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  const out = {
+    slack_sent: 0, slack_received: 0,
+    email_sent: 0, email_received: 0,
+    meetings_total: 0, meetings_declined: 0, meetings_by_me: 0, meetings_hours: 0,
+    linear_created: 0, linear_completed: 0,
+    weeks_covered: 0
+  };
+  for (const m of all) {
+    if (m.weekEnd < startMs || m.weekStart > endMs) continue;
+    out.weeks_covered++;
+    out.slack_sent += m.slack_sent || 0;
+    out.slack_received += m.slack_received || 0;
+    out.email_sent += m.email_sent || 0;
+    out.email_received += m.email_received || 0;
+    out.meetings_total += m.meetings_total || 0;
+    out.meetings_declined += m.meetings_declined || 0;
+    out.meetings_by_me += m.meetings_by_me || 0;
+    out.meetings_hours += m.meetings_hours || 0;
+    out.linear_created += m.linear_created || 0;
+    out.linear_completed += m.linear_completed || 0;
+  }
+  out.meetings_hours = Math.round(out.meetings_hours * 10) / 10;
+  return out;
+}
+
+async function fetchUnreadEmailCount() {
+  // Live state — count unread inbox emails right now (not historical).
+  const r = await safeCall(GMAIL_SEARCH, { query: "in:inbox is:unread", pageSize: 50 });
+  const obj = extractObject(r);
+  return (obj?.threads || []).length;
+}
+
+async function fetchOpenLinearCount() {
+  const cached = cacheGet("tickets:me", 6 * 60 * 60_000);
+  let issues = cached?.data ? extractObject(cached.data)?.issues : null;
+  if (!issues) {
+    const r = await safeCall(LINEAR_ISSUES, { assignee: "me", limit: 100, includeArchived: false });
+    issues = extractObject(r)?.issues || [];
+  }
+  return issues.filter(t => !t.completedAt && !t.canceledAt && !t.archivedAt
+    && t.statusType !== "completed" && t.statusType !== "canceled").length;
+}
+
+function renderMetricsPanel(metrics, unreadCount, openLinearCount) {
+  const el = document.getElementById("tl-metrics");
+  if (!el) return;
+  const totalSlack = metrics.slack_sent + metrics.slack_received;
+  const totalEmail = metrics.email_sent + metrics.email_received;
+  const meetingsAttended = metrics.meetings_total - metrics.meetings_declined;
+  el.innerHTML = `
+    <div class="tl-kpi slack">
+      <div class="kpi-label">Slack messages</div>
+      <div class="kpi-big">${totalSlack.toLocaleString()}</div>
+      <div class="kpi-sub">
+        <span class="pos">↑ ${metrics.slack_sent} sent</span> · <span class="neutral">↓ ${metrics.slack_received} received</span>
+      </div>
+    </div>
+    <div class="tl-kpi email">
+      <div class="kpi-label">Email</div>
+      <div class="kpi-big">${totalEmail.toLocaleString()}</div>
+      <div class="kpi-sub">
+        <span class="pos">↑ ${metrics.email_sent} sent</span> · <span class="neutral">↓ ${metrics.email_received} received</span>
+        ${unreadCount != null ? ` · <span class="neg">⊘ ${unreadCount} unread now</span>` : ""}
+      </div>
+    </div>
+    <div class="tl-kpi meetings">
+      <div class="kpi-label">Meetings</div>
+      <div class="kpi-big">${metrics.meetings_total}</div>
+      <div class="kpi-sub">
+        <span class="neutral">${meetingsAttended} attended · ${metrics.meetings_hours}h total</span><br>
+        <span class="neutral">${metrics.meetings_by_me} you booked · ${metrics.meetings_declined} declined</span>
+      </div>
+    </div>
+    <div class="tl-kpi linear">
+      <div class="kpi-label">Linear tickets</div>
+      <div class="kpi-big">${metrics.linear_created}</div>
+      <div class="kpi-sub">
+        <span class="neutral">created · </span><span class="pos">${metrics.linear_completed} completed</span>
+        ${openLinearCount != null ? `<br><span class="neutral">— ${openLinearCount} still open right now</span>` : ""}
+      </div>
+    </div>`;
+}
+
+// ============== Backfill ==============
+let backfillInProgress = false;
+async function runBackfill(weeksBack = 8) {
+  if (backfillInProgress) return;
+  backfillInProgress = true;
+  const btn = document.getElementById("tl-backfill");
+  const origLabel = btn?.textContent || "Backfill";
+  if (btn) { btn.disabled = true; }
+  try {
+    for (let i = weeksBack; i >= 1; i--) {
+      if (btn) btn.textContent = `Backfilling… week ${weeksBack - i + 1} of ${weeksBack}`;
+      // Use the existing weekly loader (which caches + persists to IDB + computes metrics)
+      try { await loadTimelineDataForWeek(-i); } catch (e) { console.warn("backfill week", i, e); }
+      // Polite pause between weeks to avoid rate limits
+      await new Promise(r => setTimeout(r, 350));
+    }
+    if (btn) btn.textContent = "✓ Backfilled";
+    setTimeout(() => { if (btn) { btn.textContent = origLabel; btn.disabled = false; } }, 2000);
+    // Auto-switch to 30d so the user actually SEES the backfilled data on the timeline.
+    tlSetRange("30d");
+    await loadTimeline();
+    renderCacheInfo();
+  } finally {
+    backfillInProgress = false;
+  }
+}
+
+function wireBackfill() {
+  const btn = document.getElementById("tl-backfill");
+  if (!btn || btn._wired) return;
+  btn._wired = true;
+  btn.addEventListener("click", () => runBackfill(8));
+}
+
+// ============== ~/optio/memory.md sections ==============
+function getOptioMemory() {
+  try {
+    const el = document.getElementById("optio-memory");
+    if (!el) return null;
+    return JSON.parse(el.textContent.trim());
+  } catch { return null; }
+}
+
+function staleClassFor(daysOld) {
+  if (daysOld <= 5) return "fresh";
+  if (daysOld <= 10) return "aging";
+  return "stale";
+}
+
+function daysSince(isoDate) {
+  if (!isoDate) return 999;
+  // Accept "YYYY-MM-DD" or "~YYYY-MM-DD" or "YYYY-MM"
+  const cleaned = String(isoDate).replace(/^~/, "");
+  let d;
+  if (/^\d{4}-\d{2}$/.test(cleaned)) d = new Date(cleaned + "-15");
+  else d = new Date(cleaned);
+  if (isNaN(d.getTime())) return 999;
+  return Math.floor((Date.now() - d.getTime()) / 86_400_000);
+}
+
+function renderMemoryWorkstreams(memory) {
+  const el = document.querySelector("#ms-workstreams .ms-list");
+  if (!el || !memory) return;
+  const items = memory.active_workstreams || [];
+  if (!items.length) { el.className = "ms-list ms-empty"; el.textContent = "—"; return; }
+  el.className = "ms-list";
+  el.innerHTML = items.map(w => {
+    const days = daysSince(w.last_touched);
+    const cls = staleClassFor(days);
+    const refLink = w.ref ? `<a class="ws-ref" href="file://${escapeHtml("/Users/danielben-atar/Claude/Claude Memory/optio/" + w.ref)}" title="${escapeHtml(w.ref)}">↗</a>` : "";
+    const nextAction = w.next_action
+      ? `<div class="ws-next"><span class="ws-next-label">Next:</span> ${escapeHtml(w.next_action)}</div>`
+      : "";
+    return `<div class="ms-workstream">
+      <div class="ms-ws-row">
+        <span class="stale-dot ${cls}" title="Last touched ${escapeHtml(w.last_touched || "—")} (${days}d ago)"></span>
+        <span class="ws-name">${escapeHtml(w.name)}</span>
+        <span class="ws-status">— ${escapeHtml(w.status || "")}</span>
+        ${refLink}
+        <span class="ws-age">${days}d</span>
+      </div>
+      ${nextAction}
+    </div>`;
+  }).join("");
+}
+
+function workstreamBadge(slug) {
+  if (!slug) return "";
+  const colorClass = "ws-badge-" + djb2(slug).slice(0, 1);  // 36 possible deterministic colors via djb2 first char
+  return `<span class="ws-badge ${colorClass}">${escapeHtml(slug)}</span>`;
+}
+
+function renderMemoryDecisions(memory) {
+  const el = document.querySelector("#ms-decisions .ms-list");
+  if (!el || !memory) return;
+  const items = (memory.recent_decisions || []).slice(0, 5);
+  if (!items.length) { el.className = "ms-list ms-empty"; el.textContent = "—"; return; }
+  el.className = "ms-list";
+  el.innerHTML = items.map(d => {
+    const badge = workstreamBadge(d.workstream);
+    const superseded = d.superseded
+      ? `<span class="ms-superseded" title="Superseded ${escapeHtml(d.superseded)}">superseded</span>`
+      : "";
+    const supersededCls = d.superseded ? " superseded" : "";
+    return `
+      <div class="ms-decision${supersededCls}">
+        <span class="ms-date">${escapeHtml(d.date)}</span>
+        <div class="ms-decision-body">
+          <span class="ms-text">${escapeHtml(d.text)}</span>
+          <div class="ms-decision-meta">${badge}${superseded}</div>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+async function renderMemoryStakeholderPulse(memory) {
+  const el = document.querySelector("#ms-pulse .ms-list");
+  if (!el || !memory) return;
+  const stakeholders = memory.exec_stakeholders || [];
+  if (!stakeholders.length) { el.className = "ms-list ms-empty"; el.textContent = "—"; return; }
+  // Query IDB events from last 90 days; find each stakeholder's most recent mention
+  const end = new Date();
+  const start = new Date(Date.now() - 90 * 86_400_000);
+  const events = await idbGetEventsByRange(start, end);
+  const lowerHaystacks = events.map(e =>
+    ((e.title || "") + " " + (e.subject || "") + " " + (e.body || "") + " " + (e.people || []).join(" ")).toLowerCase()
+  );
+  const eventTimestamps = events.map(e => e.timestamp);
+  const rows = stakeholders.map(s => {
+    const aliases = (s.aliases || [s.name]).map(a => a.toLowerCase());
+    let mostRecent = null;
+    for (let i = 0; i < lowerHaystacks.length; i++) {
+      const hay = lowerHaystacks[i];
+      const ts = eventTimestamps[i];
+      const matches = aliases.some(a => hay.includes(a));
+      if (matches && (mostRecent == null || ts > mostRecent)) mostRecent = ts;
+    }
+    const days = mostRecent ? Math.floor((Date.now() - mostRecent) / 86_400_000) : null;
+    return { name: s.name, days };
+  });
+  el.className = "ms-list";
+  el.innerHTML = rows.map(r => {
+    const cls = r.days == null ? "stale" : staleClassFor(r.days);
+    const text = r.days == null ? "no mention in 90d" : `${r.days}d ago`;
+    return `<div class="ms-pulse-row">
+      <span class="ms-pulse-name">${escapeHtml(r.name)}</span>
+      <span class="ms-pulse-days ${cls}">${escapeHtml(text)}</span>
+    </div>`;
+  }).join("");
+}
+
+function renderOptioMemorySections(events) {
+  const memory = getOptioMemory();
+  if (!memory) return;
+  renderMemoryWorkstreams(memory);
+  renderMemoryDecisions(memory);
+}
+
+// ============== Next action card(s) ==============
+function naId(action) {
+  // Stable hash from title + source_label so dismissals persist across reloads.
+  return "na-" + djb2(((action.title || "") + "::" + (action.source_label || "")).toLowerCase());
+}
+
+function renderNextActions(weekKey, actions) {
+  const el = document.getElementById(`${weekKey}-next-actions`);
+  if (!el) return;
+  const list = (actions || []).filter(a => a && a.title);
+  // Empty entirely (model returned nothing actionable)
+  if (!list.length) {
+    el.style.display = "block";
+    el.innerHTML = `
+      <div class="next-action-empty">
+        <div class="na-check">✓</div>
+        <div>You're caught up.<div class="na-empty-detail">No urgent open asks, stale tickets, or upcoming-meeting prep on your plate.</div></div>
+      </div>`;
+    return;
+  }
+  const dismissed = lsGetSet(NEXT_DISMISSED_KEY);
+  const visible = list.filter(a => !dismissed.has(naId(a)));
+  el.style.display = "block";
+
+  if (!visible.length) {
+    // All dismissed — celebrate + offer restore
+    el.innerHTML = `
+      <div class="next-action-empty">
+        <div class="na-check">✓</div>
+        <div>You're caught up.<div class="na-empty-detail">${list.length} suggestion${list.length === 1 ? "" : "s"} dismissed for this week.</div></div>
+        <button class="next-action-restore">Restore</button>
+      </div>`;
+    el.querySelector(".next-action-restore").addEventListener("click", () => {
+      const d = lsGetSet(NEXT_DISMISSED_KEY);
+      for (const a of list) d.delete(naId(a));
+      lsSetSet(NEXT_DISMISSED_KEY, d);
+      renderNextActions(weekKey, list);
+    });
+    return;
+  }
+
+  el.innerHTML = `<div class="na-stack-label">Next: do ${visible.length === 1 ? "this" : "these"}</div>`;
+  visible.forEach((a, i) => {
+    const card = document.createElement("div");
+    card.className = "next-action-card" + (i === 0 ? " first" : "");
+    const id = naId(a);
+    const rankBadge = visible.length > 1 ? `<span class="na-rank">${i + 1} of ${visible.length}</span>` : "";
+    const src = a.source_label ? `<span>→ ${escapeHtml(a.source_label)}</span>` : "<span></span>";
+    card.innerHTML = `
+      ${rankBadge}
+      <div class="na-title">${escapeHtml(a.title)}</div>
+      <div class="na-why">${escapeHtml(a.why || "")}</div>
+      <div class="na-footer">
+        <div class="na-source">${src}</div>
+        <button class="na-dismiss">Dismiss</button>
+      </div>`;
+    card.querySelector(".na-dismiss").addEventListener("click", () => {
+      const d = lsGetSet(NEXT_DISMISSED_KEY);
+      d.add(id);
+      lsSetSet(NEXT_DISMISSED_KEY, d);
+      card.classList.add("dismissing");
+      setTimeout(() => renderNextActions(weekKey, list), 200);
+    });
+    el.appendChild(card);
+  });
+}
+
+// ============== Chat panel ==============
+const CHAT_HISTORY_KEY = "wd:chat-history";
+let chatBusy = false;
+
+function chatLoadHistory() {
+  try { return JSON.parse(localStorage.getItem(CHAT_HISTORY_KEY) || "[]"); }
+  catch { return []; }
+}
+function chatSaveHistory(h) { localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(h.slice(-50))); }
+
+function chatRenderHistory() {
+  const histEl = document.getElementById("chat-history");
+  const sugg = document.getElementById("chat-suggestions");
+  const history = chatLoadHistory();
+  // Clear all messages but keep suggestions if no history
+  for (const m of [...histEl.querySelectorAll(".chat-msg")]) m.remove();
+  if (!history.length) {
+    if (sugg) sugg.style.display = "flex";
+    return;
+  }
+  if (sugg) sugg.style.display = "none";
+  for (const msg of history) {
+    const div = document.createElement("div");
+    div.className = `chat-msg ${msg.role}`;
+    div.innerHTML = `<div class="bubble">${escapeHtml(msg.text)}</div>`;
+    histEl.appendChild(div);
+  }
+  histEl.scrollTop = histEl.scrollHeight;
+}
+
+async function buildChatContext() {
+  // Pull from IDB + caches: aggregated metrics, recent recap, open tickets, recent events.
+  const thisRange = weekRange(0);
+  const lastRange = weekRange(-1);
+  const [thisMetrics, allMetrics, recentEvents, openTicketsResp] = await Promise.all([
+    aggregateMetricsForRange(thisRange.start, thisRange.end),
+    idbGetAllMetrics(),
+    idbGetEventsByRange(new Date(Date.now() - 14 * 24 * 3600_000), new Date()),
+    cacheGet("tickets:me", 6 * 60 * 60_000)
+  ]);
+  const openTickets = (extractObject(openTicketsResp?.data)?.issues || [])
+    .filter(t => !t.completedAt && !t.canceledAt && !t.archivedAt
+      && t.statusType !== "completed" && t.statusType !== "canceled")
+    .slice(0, 30)
+    .map(t => ({
+      id: t.id, title: t.title, status: t.status, priority: t.priority?.name, team: t.team,
+      updatedAt: t.updatedAt, createdAt: t.createdAt
+    }));
+  // Try to grab a recent week_recap from synth caches
+  let recentRecap = null;
+  for (const k of cacheKeys("synth:this:")) {
+    const hit = cacheGet(k.slice(CACHE_PREFIX.length), Infinity);
+    if (hit && hit.data && hit.data.week_recap) { recentRecap = hit.data.week_recap; break; }
+  }
+  return {
+    me: ME_NAME,
+    today: new Date().toISOString().slice(0, 16),
+    this_week_metrics: thisMetrics,
+    weekly_metrics_history: allMetrics.slice(-12),
+    recent_events_count_by_source: recentEvents.reduce((a, e) => { a[e.source] = (a[e.source]||0)+1; return a; }, {}),
+    recent_events_sample: recentEvents.slice(-30).map(e => ({
+      source: e.source, when: new Date(e.timestamp).toISOString(),
+      title: e.title, subject: e.subject, body: (e.body || "").slice(0, 200)
+    })),
+    open_linear_tickets: openTickets,
+    this_week_recap: recentRecap
+  };
+}
+
+// Executors that translate model-friendly action names into actual MCP tool calls.
+const CHAT_ACTIONS = {
+  create_linear_ticket: async ({ title, description, priority }) => {
+    const teamId = document.getElementById("team-select")?.value;
+    if (!teamId) throw new Error("No Linear team selected — pick one in the header first.");
+    const args = { title, team: teamId, assignee: "me" };
+    if (description) args.description = description;
+    if (priority) args.priority = Number(priority);
+    const r = await safeCall(LINEAR_SAVE, args);
+    const obj = extractObject(r);
+    cacheClear("tickets:me");
+    const id = obj?.issue?.identifier || obj?.identifier || "(created)";
+    const url = obj?.issue?.url || obj?.url || `https://linear.app/optio-inc/issue/${id}`;
+    return `Created ${id}` + (url ? ` — ${url}` : "");
+  },
+  complete_linear_ticket: async ({ id }) => {
+    if (!id) throw new Error("Missing ticket id (e.g. DATA-1141).");
+    const r = await safeCall(LINEAR_SAVE, { id, state: "completed" });
+    if (!r) throw new Error("Linear update failed.");
+    cacheClear("tickets:me");
+    return `Marked ${id} as Done.`;
+  },
+  schedule_meeting: async ({ summary, startTime, endTime, attendees, description, addGoogleMeet }) => {
+    const args = { summary, startTime, endTime };
+    if (Array.isArray(attendees) && attendees.length) args.attendeeEmails = attendees;
+    if (description) args.description = description;
+    args.addGoogleMeetUrl = addGoogleMeet !== false;  // default true
+    const r = await safeCall(CAL_CREATE, args);
+    const obj = extractObject(r);
+    if (!r || !obj) throw new Error("Calendar create failed.");
+    const link = obj?.htmlLink || obj?.id || "";
+    return `Scheduled "${summary}" — ${link}`;
+  }
+};
+
+function appendActionCard(action, meta = {}) {
+  const histEl = document.getElementById("chat-history");
+  const card = document.createElement("div");
+  card.className = "chat-action-card";
+  // Pretty-print details
+  const details = JSON.stringify(action.args || {}, null, 2);
+  card.innerHTML = `
+    <div class="ac-label">Action proposed · ${escapeHtml(action.tool)}</div>
+    <div class="ac-title">${escapeHtml(action.confirm_label || action.tool)}</div>
+    <div class="ac-details">${escapeHtml(details)}</div>
+    <div class="ac-buttons">
+      <button class="ac-confirm">Confirm</button>
+      <button class="ac-cancel">Cancel</button>
+    </div>`;
+  histEl.appendChild(card);
+  histEl.scrollTop = histEl.scrollHeight;
+  return new Promise((resolve) => {
+    card.querySelector(".ac-confirm").addEventListener("click", async () => {
+      card.querySelector(".ac-buttons").innerHTML = `<span style="font-size:11px;color:#6e6e73;font-style:italic">Executing…</span>`;
+      try {
+        const exec = CHAT_ACTIONS[action.tool];
+        if (!exec) throw new Error(`Unknown tool: ${action.tool}`);
+        const result = await exec(action.args || {});
+        card.classList.add("done");
+        card.querySelector(".ac-label").textContent = "✓ Done";
+        card.querySelector(".ac-buttons").innerHTML = `<span style="font-size:11.5px;color:#1f7a3a">${escapeHtml(result)}</span>`;
+        resolve({ ok: true, message: result });
+      } catch (e) {
+        card.classList.add("error");
+        card.querySelector(".ac-label").textContent = "✗ Failed";
+        card.querySelector(".ac-buttons").innerHTML = `<span style="font-size:11.5px;color:#b00020">${escapeHtml(e.message || String(e))}</span>`;
+        resolve({ ok: false, message: e.message || String(e) });
+      }
+    });
+    card.querySelector(".ac-cancel").addEventListener("click", () => {
+      card.classList.add("done");
+      card.querySelector(".ac-label").textContent = "Cancelled";
+      card.querySelector(".ac-buttons").innerHTML = `<span style="font-size:11.5px;color:#8e8e93">No changes made.</span>`;
+      resolve({ ok: false, message: "cancelled by user" });
+    });
+  });
+}
+
+async function chatSend(question) {
+  if (chatBusy || !question.trim()) return;
+  chatBusy = true;
+  const histEl = document.getElementById("chat-history");
+  const sugg = document.getElementById("chat-suggestions");
+  if (sugg) sugg.style.display = "none";
+  const history = chatLoadHistory();
+  history.push({ role: "user", text: question });
+  chatSaveHistory(history);
+  const userDiv = document.createElement("div");
+  userDiv.className = "chat-msg user";
+  userDiv.innerHTML = `<div class="bubble">${escapeHtml(question)}</div>`;
+  histEl.appendChild(userDiv);
+  const thinkDiv = document.createElement("div");
+  thinkDiv.className = "chat-msg assistant thinking";
+  thinkDiv.innerHTML = `<div class="bubble">Thinking…</div>`;
+  histEl.appendChild(thinkDiv);
+  histEl.scrollTop = histEl.scrollHeight;
+
+  try {
+    const ctx = await buildChatContext();
+    const recentExchanges = chatLoadHistory().slice(-10, -1);
+    const prompt = [
+      `You are an assistant integrated into Dan's Daily Hub — a personal dashboard that pulls his Slack, Email, Calendar, Linear tickets, and Cowork session activity.`,
+      `Dan is Director of Data at Optio Incentives. Be concise, specific, opinionated. Cite specific tickets / threads / meetings by name when relevant. Use second person ('you').`,
+      `Today is ${ctx.today}.`,
+      "",
+      `# You can take actions on Dan's behalf`,
+      `When the user asks you to DO something (create a ticket, schedule a meeting, mark something done), include actions in your response.`,
+      `Available actions:`,
+      `  - create_linear_ticket: { title (string, required, <=100 chars), description? (string, markdown), priority? (1=Urgent, 2=High, 3=Medium, 4=Low) }. Will be assigned to Dan in the currently-selected Linear team.`,
+      `  - complete_linear_ticket: { id (string like "DATA-1141", required) }. Marks the ticket Done.`,
+      `  - schedule_meeting: { summary (required), startTime (ISO 8601 with timezone, required), endTime (ISO 8601, required), attendees? (string[] of emails), description?, addGoogleMeet? (default true) }. Always include timezone in ISO times — Dan is in America/New_York. Use 30 minutes default duration if not specified.`,
+      "",
+      `# Output format — STRICT JSON ONLY`,
+      `Respond with: { "reply": "<short text reply>", "actions": [{ "tool", "args", "confirm_label" }] }`,
+      `- "reply" is plain text shown to user (1-3 short paragraphs). It should explain WHAT you're proposing or just answer the question.`,
+      `- "actions" is [] if the user is asking for info, not an action.`,
+      `- "confirm_label" is what shows on the confirmation card (<=80 chars, human-readable).`,
+      `- If the request is ambiguous (e.g. unclear time, missing info), return [] for actions and ASK in the reply.`,
+      `- If you don't have enough data to recommend specifically, say so in reply rather than making things up.`,
+      "",
+      `Recent conversation:`,
+      ...recentExchanges.map(m => `${m.role.toUpperCase()}: ${m.text}`),
+      "",
+      `Current question: ${question}`
+    ].join("\n");
+    const resp = await window.cowork.askClaude(prompt, [ctx]);
+    const text = typeof resp === "string" ? resp : (resp?.text || JSON.stringify(resp));
+    // Try strict JSON parse first; fall back to raw text if model didn't comply.
+    let parsed = null;
+    try {
+      const m = text.match(/\{[\s\S]*\}/);
+      if (m) parsed = JSON.parse(m[0]);
+    } catch {}
+    thinkDiv.remove();
+    const replyText = (parsed && parsed.reply) ? parsed.reply : text.trim();
+    const aDiv = document.createElement("div");
+    aDiv.className = "chat-msg assistant";
+    aDiv.innerHTML = `<div class="bubble">${escapeHtml(replyText)}</div>`;
+    histEl.appendChild(aDiv);
+    history.push({ role: "assistant", text: replyText });
+    chatSaveHistory(history);
+    // Render actions, if any
+    const actions = (parsed && Array.isArray(parsed.actions)) ? parsed.actions : [];
+    for (const a of actions) {
+      const result = await appendActionCard(a);
+      // Append a system-style note to history so the next turn knows what happened
+      history.push({ role: "assistant", text: `[Action ${a.tool}: ${result.ok ? "DONE" : "CANCELLED/FAILED"} — ${result.message}]` });
+      chatSaveHistory(history);
+    }
+    histEl.scrollTop = histEl.scrollHeight;
+  } catch (e) {
+    thinkDiv.querySelector(".bubble").textContent = `Couldn't reach Haiku: ${e.message || e}`;
+    thinkDiv.classList.remove("thinking");
+  } finally {
+    chatBusy = false;
+  }
+}
+
+function setupChat() {
+  const toggle = document.getElementById("chat-toggle");
+  const panel = document.getElementById("chat-panel");
+  const close = document.getElementById("chat-close");
+  const clear = document.getElementById("chat-clear");
+  const form = document.getElementById("chat-input-row");
+  const input = document.getElementById("chat-input");
+  if (!toggle || !panel) return;
+  toggle.addEventListener("click", () => {
+    panel.classList.add("open");
+    toggle.style.display = "none";
+    chatRenderHistory();
+    setTimeout(() => input.focus(), 50);
+  });
+  close.addEventListener("click", () => {
+    panel.classList.remove("open");
+    toggle.style.display = "flex";
+  });
+  clear.addEventListener("click", () => {
+    if (!confirm("Clear chat history?")) return;
+    chatSaveHistory([]);
+    chatRenderHistory();
+  });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = input.value.trim();
+    if (!q) return;
+    input.value = "";
+    chatSend(q);
+  });
+  // Wire suggestion buttons
+  for (const btn of document.querySelectorAll(".chat-suggestion")) {
+    btn.addEventListener("click", () => chatSend(btn.dataset.q));
+  }
+  chatRenderHistory();
+}
+
+// ============== Open in apps (Slack / Linear deep links) ==============
+// Converts a web URL to its native macOS app deep link, if matching.
+// - Slack:  https://*.slack.com/archives/CHAN/pTS  →  slack://*.slack.com/archives/CHAN/pTS
+//           Slack desktop app registers slack:// scheme on install; macOS hands off the URL.
+// - Linear: https://linear.app/<workspace>/issue/<id>  →  linear://<workspace>/issue/<id>
+//           Same scheme registration on the Linear desktop app.
+function convertToAppUrl(url) {
+  if (!url) return url;
+  // Slack: any *.slack.com URL
+  if (/^https:\/\/[^/]*slack\.com\//i.test(url)) {
+    return url.replace(/^https:/, "slack:");
+  }
+  // Linear
+  if (/^https:\/\/linear\.app\//i.test(url)) {
+    return url.replace(/^https:\/\/linear\.app\//, "linear://");
+  }
+  return null; // not a convertible URL
+}
+
+// Fire a custom-protocol URL via a hidden iframe so the artifact view doesn't navigate.
+function openProtocolUrl(url) {
+  const ifr = document.createElement("iframe");
+  ifr.style.cssText = "display:none;position:absolute;width:0;height:0;border:0";
+  ifr.src = url;
+  document.body.appendChild(ifr);
+  setTimeout(() => ifr.remove(), 1500);
+}
+
+// Defaults to true: only OFF if explicitly disabled.
+function isOpenInAppsOn() { return localStorage.getItem(OPEN_IN_APPS_KEY) !== "0"; }
+
+function setupOpenInAppsToggle() {
+  const cb = document.getElementById("open-in-apps");
+  if (!cb) return;
+  cb.checked = isOpenInAppsOn();
+  cb.addEventListener("change", () => {
+    if (cb.checked) localStorage.removeItem(OPEN_IN_APPS_KEY);
+    else localStorage.setItem(OPEN_IN_APPS_KEY, "0");
+  });
+  // Capture-phase click handler so we run before the browser navigates.
+  document.addEventListener("click", (e) => {
+    if (!isOpenInAppsOn()) return;
+    // Find anchor or element with data-url
+    const a = e.target.closest("a[href]");
+    if (!a) return;
+    const href = a.getAttribute("href") || "";
+    if (!href || href === "#" || href.startsWith("javascript:")) return;
+    const appUrl = convertToAppUrl(href);
+    if (!appUrl) return;
+    // Don't preventDefault on middle-click / cmd-click — let those open in browser intentionally
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+    e.preventDefault();
+    openProtocolUrl(appUrl);
+  }, true);
+}
+
+// ============== Main ==============
+async function main() {
+  buildTabs();
+  setupCollapsibles();
+  setupOpenInAppsToggle();
+  setupChat();
+  wireClearCache();
+  renderCacheInfo();
+  loadTeams();
+  const saved = localStorage.getItem(ACTIVE_TAB_KEY) || "this";
+  setActiveTab(saved);
+}
+
+main().catch(e => {
+  document.getElementById("footnote").innerHTML = `<span class="err">Error: ${escapeHtml(e.message || String(e))}</span>`;
+});
+</script>
+</body>
+</html>

@@ -48,7 +48,7 @@ These constants are used to tag messages as "from me" (so Needs reply correctly 
 ### 2. Your meeting transcripts folder (around line 3646)
 
 ```js
-const PLAUD_BASE = "file:///Users/danielben-atar/Claude/Claude%20Memory/optio/Meeting%20Transcripts/";
+const MEETINGS_BASE = "file:///Users/danielben-atar/Claude/Claude%20Memory/optio/Meeting%20Transcripts/";
 ```
 
 Point this at wherever you keep meeting transcripts on disk. Any folder of dated `.md` files works — Plaud, Granola, Fathom, Otter exports, or manual paste-ins from Gemini auto-notes. The recommended filename pattern is `YYYY-MM-DD_short-topic_<hash>.md`; the Hub parses the leading date and uses the topic portion as the row label.
@@ -96,7 +96,7 @@ This is the only chunk of personal data baked into the file: a snapshot of the m
   "exec_stakeholders": [
     {"name": "Full Name", "aliases": ["Full Name", "Nickname"]}
   ],
-  "plaud_transcripts": [
+  "meeting_transcripts": [
     {
       "date": "2026-05-11",
       "topic": "Short topic label",
@@ -127,7 +127,7 @@ If something doesn't work — e.g. Slack data is empty, the Linear team picker i
 ## Keeping it current
 
 - **Memory JSON.** When your priorities change, hand-edit the `<script id="optio-memory">` block. Or, if you have Claude in a Cowork session with access to your memory folder, ask: "update the embedded memory in the Daily Hub from my current memory.md."
-- **Transcripts list.** New transcript files in your folder don't appear automatically — the list is embedded. Ask Claude: "re-list my meeting transcripts folder and update the embedded list in the Daily Hub." Or hand-edit the `plaud_transcripts` array.
+- **Transcripts list.** New transcript files in your folder don't appear automatically — the list is embedded. Ask Claude: "re-list my meeting transcripts folder and update the embedded list in the Daily Hub." Or hand-edit the `meeting_transcripts` array.
 - **Live data.** Slack, Gmail, Calendar, Drive, Linear, Cowork sessions all refresh from MCP every 6 hours (or on-demand via the Refresh button). No maintenance.
 
 ## Caveats worth knowing

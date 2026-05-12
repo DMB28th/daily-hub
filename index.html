@@ -500,19 +500,19 @@
     font-size: 12.5px; padding: 4px 0;
   }
   .memory-section .ms-pulse-name { font-weight: 500; color: #1d1d1f; }
-  .memory-section .ms-plaud-row {
+  .memory-section .ms-meeting-row {
     display: flex; gap: 10px; align-items: baseline; font-size: 12.5px; line-height: 1.5;
     padding: 4px 0; border-bottom: 1px dashed #f5f5f7;
     text-decoration: none; color: inherit;
   }
-  .memory-section .ms-plaud-row:last-child { border-bottom: none; }
-  .memory-section .ms-plaud-row:hover { background: #f8f7fb; }
-  .memory-section .ms-plaud-row .ms-date {
+  .memory-section .ms-meeting-row:last-child { border-bottom: none; }
+  .memory-section .ms-meeting-row:hover { background: #f8f7fb; }
+  .memory-section .ms-meeting-row .ms-date {
     color: #8e8e93; font-size: 11px; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
     flex-shrink: 0; min-width: 84px;
   }
-  .memory-section .ms-plaud-row .ms-plaud-topic { color: #1d1d1f; flex: 1; }
-  .memory-section .ms-plaud-row .ms-plaud-age {
+  .memory-section .ms-meeting-row .ms-meeting-topic { color: #1d1d1f; flex: 1; }
+  .memory-section .ms-meeting-row .ms-meeting-age {
     color: #8e8e93; font-size: 11px; flex-shrink: 0; min-width: 28px; text-align: right;
   }
   .memory-section .ms-pulse-days {
@@ -825,7 +825,7 @@
         <div class="ms-label">Recent decisions <span class="ms-source">~/optio/memory.md</span></div>
         <div class="ms-list ms-empty">—</div>
       </div>
-      <div class="memory-section" id="ms-plaud">
+      <div class="memory-section" id="ms-meetings">
         <div class="ms-label">Recent meeting transcripts <span class="ms-source">~/optio/Meeting Transcripts/</span></div>
         <div class="ms-list ms-empty">—</div>
       </div>
@@ -972,7 +972,7 @@
     {"name": "Knut Finstad",      "aliases": ["Knut Finstad", "Knut Dagfinn Finstad"]},
     {"name": "Benjamin Roach",    "aliases": ["Benjamin Roach", "Benjamin"]}
   ],
-  "plaud_transcripts": [
+  "meeting_transcripts": [
     {"date": "2026-05-11", "topic": "Weekly Meeting — Gemini Enterprise rollout, GDPR compliance, CS AI enablement", "file": "2026-05-11_05-11-Weekly-Meeting-Gemini-Enterprise-Rollout-GDPR-Compliance-and-CS-AI-Enablem_7c808a4f.md"},
     {"date": "2026-05-11", "topic": "Weekly Meeting — Financial data reconciliation, churn analysis",                "file": "2026-05-11_05-11-Weekly-Meeting-Financial-Data-Reconciliation-Churn-Analysis_0d120945.md"},
     {"date": "2026-05-11", "topic": "RevOps — CRM automation fix, Clay enrichment immediate task/report",            "file": "2026-05-11_05-11-RevOps-fix-for-CRM-automation-failing-Clay-enrichment-immediate-taskreport_61844026.md"},
@@ -1686,7 +1686,7 @@ async function synthesize(threads, emails, pastMeetings, upcomingMeetings, cowor
   const memorySummary = {
     workstreams: (memory.active_workstreams || []).map(w => `${w.slug || w.name}: ${w.status || ""}`).join(" | "),
     decisions: (memory.recent_decisions || []).slice(0, 5).map(d => `${d.date} (${d.workstream||"-"}): ${d.text}`).join(" || "),
-    plaud_topics: (memory.plaud_transcripts || []).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""))
+    meeting_topics: (memory.meeting_transcripts || []).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""))
       .slice(0, 12).map(t => `${t.date}: ${t.topic}`).join(" || ")
   };
   // Aggressive caps — earlier versions of this payload were timing out Haiku at 60s.
@@ -1749,8 +1749,8 @@ async function synthesize(threads, emails, pastMeetings, upcomingMeetings, cowor
     `Dan's current context (use as ground truth — don't recommend things that contradict it):`,
     `  Active workstreams: ${memorySummary.workstreams || "(none)"}`,
     `  Recent decisions: ${memorySummary.decisions || "(none)"}`,
-    `  Plaud transcripts this week (date: topic — bodies NOT loaded): ${memorySummary.plaud_topics || "(none)"}`,
-    `Use Plaud topics as supporting evidence in completed_actions (meetings that actually happened). Don't propose linear_actions just because a Plaud entry exists.`,
+    `  Meeting transcripts this week (date: topic — bodies NOT loaded): ${memorySummary.meeting_topics || "(none)"}`,
+    `Use meeting topics as supporting evidence in completed_actions (meetings that actually happened). Don't propose linear_actions just because a meeting entry exists.`,
     "",
     "PHRASE LIBRARY — use these as anchors when detecting asks, commitments, and completions. They are signals, not exhaustive — judgment still applies, and context matters.",
     "",
@@ -2783,7 +2783,7 @@ function setupCollapsibles() {
     const body = h.nextElementSibling;
     wireCollapsible(h, body, sectionKey(h), /*defaultCollapsed=*/true);
   }
-  // 2) memory.md sections (Active workstreams, Recent decisions, Recent Plaud transcripts) — default expanded
+  // 2) memory.md sections (Active workstreams, Recent decisions, Recent meeting transcripts) — default expanded
   for (const sect of document.querySelectorAll(".memory-section")) {
     const label = sect.querySelector(".ms-label");
     const body = sect.querySelector(".ms-list");
@@ -3638,20 +3638,20 @@ async function renderMemoryStakeholderPulse(memory) {
   }).join("");
 }
 
-function renderMemoryPlaud(memory) {
-  const el = document.querySelector("#ms-plaud .ms-list");
+function renderMemoryMeetings(memory) {
+  const el = document.querySelector("#ms-meetings .ms-list");
   if (!el || !memory) return;
-  const items = (memory.plaud_transcripts || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 8);
+  const items = (memory.meeting_transcripts || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 8);
   if (!items.length) { el.classList.add("ms-empty"); el.textContent = "—"; return; }
-  const PLAUD_BASE = "file:///Users/danielben-atar/Claude/Claude%20Memory/optio/Meeting%20Transcripts/";
+  const MEETINGS_BASE = "file:///Users/danielben-atar/Claude/Claude%20Memory/optio/Meeting%20Transcripts/";
   el.classList.remove("ms-empty");
   el.innerHTML = items.map(t => {
-    const url = PLAUD_BASE + encodeURIComponent(t.file);
+    const url = MEETINGS_BASE + encodeURIComponent(t.file);
     const days = daysSince(t.date);
-    return `<a class="ms-plaud-row" href="${escapeHtml(url)}" title="${escapeHtml(t.file)}">
+    return `<a class="ms-meeting-row" href="${escapeHtml(url)}" title="${escapeHtml(t.file)}">
       <span class="ms-date">${escapeHtml(t.date || "")}</span>
-      <span class="ms-plaud-topic">${escapeHtml(t.topic || t.file || "")}</span>
-      <span class="ms-plaud-age">${days}d</span>
+      <span class="ms-meeting-topic">${escapeHtml(t.topic || t.file || "")}</span>
+      <span class="ms-meeting-age">${days}d</span>
     </a>`;
   }).join("");
 }
@@ -3661,7 +3661,7 @@ async function renderOptioMemorySections(events) {
   if (!memory) return;
   renderMemoryWorkstreams(memory);
   renderMemoryDecisions(memory);
-  renderMemoryPlaud(memory);
+  renderMemoryMeetings(memory);
 }
 
 // ============== Next action card(s) ==============
@@ -3792,7 +3792,7 @@ async function buildChatContext() {
   const memoryStrings = {
     workstreams: (memory.active_workstreams || []).map(w => `${w.slug || w.name}: ${w.status || ""} — Next: ${w.next_action || "—"}`).join(" | "),
     decisions: (memory.recent_decisions || []).slice(0, 6).map(d => `${d.date}: ${d.text}`).join(" || "),
-    plaud_topics: (memory.plaud_transcripts || []).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""))
+    meeting_topics: (memory.meeting_transcripts || []).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""))
       .slice(0, 12).map(t => `${t.date}: ${t.topic}`).join(" || ")
   };
   return {
@@ -3919,8 +3919,8 @@ async function chatSend(question) {
       `# Dan's current context (use as ground truth):`,
       `Workstreams: ${ctx.memory_context?.workstreams || "(none)"}`,
       `Recent decisions: ${ctx.memory_context?.decisions || "(none)"}`,
-      `Plaud meetings (date: topic — bodies not loaded): ${ctx.memory_context?.plaud_topics || "(none)"}`,
-      `When asked "what should I work on", lean on workstream Next actions. When asked about a recent meeting topic, cross-reference Plaud topics with recent_events_sample.`,
+      `Meeting transcripts (date: topic — bodies not loaded): ${ctx.memory_context?.meeting_topics || "(none)"}`,
+      `When asked "what should I work on", lean on workstream Next actions. When asked about a recent meeting topic, cross-reference meeting topics with recent_events_sample.`,
       "",
       `# You can take actions on Dan's behalf`,
       `When the user asks you to DO something (create a ticket, schedule a meeting, mark something done), include actions in your response.`,

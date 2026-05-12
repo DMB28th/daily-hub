@@ -82,7 +82,7 @@ The Hub's "Recent meeting transcripts" section reads transcript filenames from a
 
 ### 1. Pick a folder + naming convention
 
-The Hub reads from `~/optio/Meeting Transcripts/` by default. To use a different folder, edit the `PLAUD_BASE` constant in the Daily Hub HTML (or ask Claude to point it elsewhere).
+The Hub reads from `~/optio/Meeting Transcripts/` by default. To use a different folder, edit the `MEETINGS_BASE` constant in the Daily Hub HTML (or ask Claude to point it elsewhere).
 
 Recommended filename pattern: `YYYY-MM-DD_short-topic-summary_<hash>.md`. The Hub parses the leading date to sort and age the entry, and uses the topic portion as the display label.
 
@@ -96,7 +96,7 @@ Three options, depending on your recording tool:
 
 ### 3. Embed the file list in the Hub
 
-The Hub keeps a static `plaud_transcripts` array inside its embedded JSON snapshot (date + topic + filename). When new transcripts land in the folder, ask Claude in a Cowork session: "refresh the meeting transcript list in the Daily Hub" and it'll re-list the folder and update the embedded JSON.
+The Hub keeps a static `meeting_transcripts` array inside its embedded JSON snapshot (date + topic + filename). When new transcripts land in the folder, ask Claude in a Cowork session: "refresh the meeting transcript list in the Daily Hub" and it'll re-list the folder and update the embedded JSON.
 
 The transcript rows link via `file:///` URLs back to the markdown source, so clicking opens the raw transcript in your default markdown viewer.
 

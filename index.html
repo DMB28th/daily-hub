@@ -639,6 +639,15 @@
   }
   .card:hover { border-color: #d2d2d7; background: #fafafa; }
   .card.urgent { border-left: 3px solid #d4314a; }
+  .card.urgent-old { border-left: 3px solid #b00020; }
+  .urgent-age {
+    display: inline-block; font-size: 11px; color: #8e8e93;
+    padding: 2px 6px; border-radius: 6px; background: #f5f5f7;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    margin-right: 6px;
+  }
+  .urgent-age.aging { color: #b06f00; background: #fff4e0; }
+  .urgent-age.stale { color: #b00020; background: #ffe4e4; }
   .card .row1 { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
   .who { font-weight: 600; }
   .when { color: #8e8e93; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
@@ -749,6 +758,12 @@
   .btn .check { color: #1f7a3a; font-weight: 600; }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
+  .week-vibe {
+    font-style: italic; font-size: 15.5px; color: #4a4a4f;
+    margin: 14px 0 18px; padding: 10px 14px;
+    border-left: 3px solid #5e3aa6; background: #fafafa; border-radius: 6px;
+  }
+  .week-vibe:empty { display: none; }
   .week-summary {
     margin: 18px 0 4px; padding: 16px 18px;
     background: linear-gradient(180deg, #fafaff 0%, #f5f5fb 100%);
@@ -791,6 +806,7 @@
   <nav class="tabs" role="tablist" id="tabs"></nav>
 
   <div class="tab-content" data-week="last">
+    <div class="week-vibe" id="last-vibe"></div>
     <div class="week-summary" id="last-summary">
       <div class="ws-label">Week recap</div>
       <div class="ws-skel"></div><div class="ws-skel"></div><div class="ws-skel short"></div>
@@ -811,6 +827,7 @@
   </div>
 
   <div class="tab-content" data-week="this">
+    <div class="week-vibe" id="this-vibe"></div>
     <div class="week-summary" id="this-summary">
       <div class="ws-label">Week so far</div>
       <div class="ws-skel"></div><div class="ws-skel"></div><div class="ws-skel short"></div>
@@ -827,6 +844,10 @@
       </div>
       <div class="memory-section" id="ms-meetings">
         <div class="ms-label">Recent meeting transcripts <span class="ms-source">~/optio/Meeting Transcripts/</span></div>
+        <div class="ms-list ms-empty">—</div>
+      </div>
+      <div class="memory-section" id="ms-pulse">
+        <div class="ms-label">Stakeholder pulse <span class="ms-source">~/optio/memory.md exec_stakeholders</span></div>
         <div class="ms-list ms-empty">—</div>
       </div>
     </div>
@@ -850,6 +871,7 @@
   </div>
 
   <div class="tab-content" data-week="next">
+    <div class="week-vibe" id="next-vibe"></div>
     <div class="week-summary" id="next-summary">
       <div class="ws-label">Looking ahead</div>
       <div class="ws-skel"></div><div class="ws-skel"></div><div class="ws-skel short"></div>
@@ -1813,6 +1835,8 @@ async function synthesize(threads, emails, pastMeetings, upcomingMeetings, cowor
     "  - `planned`: synthesizes `open_work`, `meetings_upcoming`. Commitments, decisions, what's queued up.",
     "Write in second person ('you'), past tense for past weeks, present/future for the current week. Avoid corporate-speak.",
     "",
+    "Then `week_vibe`: ONE sentence (<=25 words) capturing the dominant theme. Derived from `section_summaries`. Same voice as `week_recap`.",
+    "",
     "Finally `next_actions`: list of UP TO 3 recommendations for what Dan should work on next, ordered most-important first. Pick highest-leverage items considering:",
     "  - Linear tickets in `open_work` / `linear_actions` with high priority or that block others",
     "  - Open asks in Needs reply (LATEST messages from someone else with a question that hasn't been answered)",
@@ -1822,7 +1846,7 @@ async function synthesize(threads, emails, pastMeetings, upcomingMeetings, cowor
     "Be opinionated — only include things that genuinely matter. Quality over quantity: 1 great item is better than 3 mediocre ones. If nothing genuinely urgent, return [].",
     "Important: do NOT recommend replying to a thread where Dan already sent the last message. Check `latest_from_is_me` on threads — if true, that thread does NOT need a reply.",
     "",
-    "Return STRICT JSON: {\"threads\":[...], \"emails\":[...], \"meeting_summaries\":[...], \"meeting_agendas\":[...], \"linear_actions\":[...], \"completed_actions\":[...], \"section_summaries\":{\"conversations\":\"...\",\"email\":\"...\",\"meetings_past\":\"...\",\"meetings_upcoming\":\"...\",\"open_work\":\"...\",\"completed\":\"...\"}, \"week_recap\":{\"worked_on\":\"...\",\"talked_about\":\"...\",\"planned\":\"...\"}, \"next_actions\":[{\"title\":\"...\",\"why\":\"...\",\"source_label\":\"...\"}]}. No markdown fences."
+    "Return STRICT JSON: {\"threads\":[...], \"emails\":[...], \"meeting_summaries\":[...], \"meeting_agendas\":[...], \"linear_actions\":[...], \"completed_actions\":[...], \"section_summaries\":{\"conversations\":\"...\",\"email\":\"...\",\"meetings_past\":\"...\",\"meetings_upcoming\":\"...\",\"open_work\":\"...\",\"completed\":\"...\"}, \"week_recap\":{\"worked_on\":\"...\",\"talked_about\":\"...\",\"planned\":\"...\"}, \"week_vibe\":\"...\", \"next_actions\":[{\"title\":\"...\",\"why\":\"...\",\"source_label\":\"...\"}]}. No markdown fences."
   ].join("\n");
   // Diagnostics that surface in the UI (since Claude desktop hides the dev console)
   const payloadSize = JSON.stringify(payload).length;
@@ -1870,7 +1894,9 @@ async function synthesizeAgendas(upcomingMeetings) {
     "  - `talked_about`: ''",
     "  - `planned`: a personal, concise summary of what's coming — themes across the week's meetings, key conversations to prepare for, decisions that need to land. Name specific people and topics. Write in second person. Build this from `section_summaries.meetings_upcoming`.",
     "",
-    "Return STRICT JSON: {\"agendas\":[{id, agenda}], \"section_summaries\":{\"meetings_upcoming\":\"...\"}, \"week_recap\":{\"worked_on\":\"\",\"talked_about\":\"\",\"planned\":\"...\"}}. No markdown fences."
+    "Also produce `week_vibe`: ONE sentence (<=25 words) capturing the dominant theme of the upcoming week. Derived from `section_summaries.meetings_upcoming`. Same voice as `week_recap.planned`.",
+    "",
+    "Return STRICT JSON: {\"agendas\":[{id, agenda}], \"section_summaries\":{\"meetings_upcoming\":\"...\"}, \"week_recap\":{\"worked_on\":\"\",\"talked_about\":\"\",\"planned\":\"...\"}, \"week_vibe\":\"...\"}. No markdown fences."
   ].join("\n");
   try {
     const resp = await window.cowork.askClaude(prompt, [payload]);
@@ -1963,6 +1989,15 @@ async function logAsDone(action, btn) {
 // ============== Render ==============
 function renderEmpty(el, msg) { el.innerHTML = `<div class="empty">${escapeHtml(msg)}</div>`; }
 
+function renderWeekVibe(weekKey, vibeText) {
+  const el = document.getElementById(`${weekKey}-vibe`);
+  if (!el) return;
+  const text = (vibeText || "").trim();
+  if (!text) { el.textContent = ""; el.style.display = "none"; return; }
+  el.textContent = text;
+  el.style.display = "";
+}
+
 function renderWeekRecap(weekKey, recap, hadAnyData) {
   const el = document.getElementById(`${weekKey}-summary`);
   if (!el) return;
@@ -2000,16 +2035,32 @@ function renderWeekRecap(weekKey, recap, hadAnyData) {
 function slackIgnoreKey(t) { return `slack:${t.channelId}:${t.latestTs}`; }
 function emailIgnoreKey(e) { return `email:${e.threadId}:${e.latestTs}`; }
 
+// Aging badge for Needs Reply cards. Returns { html, isOld } given a unix epoch seconds timestamp.
+// isOld === true when 5+ days waiting (so the parent card can take the .urgent-old class).
+function urgentAgeBadge(ts) {
+  if (!ts || !isFinite(ts)) return { html: "", isOld: false };
+  const hours = (Date.now() - ts * 1000) / 3600000;
+  if (!isFinite(hours) || hours < 0) return { html: "", isOld: false };
+  const days = hours / 24;
+  const label = hours < 24 ? `${Math.max(1, Math.round(hours))}h` : `${Math.round(days)}d`;
+  let cls = "";
+  if (days >= 5) cls = "stale";
+  else if (days >= 2) cls = "aging";
+  return { html: `<span class="urgent-age ${cls}">${label}</span>`, isOld: days >= 5 };
+}
+
 function renderThreadCard(t, meta, urgent) {
   const tags = sourceTags(t).map(x => `<span class="tag ${x.cls}">${x.label}</span>`).join("");
   const reason = urgent && meta?.reply_reason ? `<div class="reason">↳ ${escapeHtml(meta.reply_reason)}</div>` : "";
   const summary = escapeHtml(meta?.summary || (t.latestText || "").replace(/\s+/g, " ").slice(0, 220));
   const ignoreBtn = urgent ? `<button class="ignore-btn" data-ignore-key="${escapeHtml(slackIgnoreKey(t))}">Ignore</button>` : "";
-  return `<a class="card ${urgent ? "urgent" : ""}" href="${t.latestPermalink || "#"}" target="_blank" rel="noopener" data-channel="${t.channelId}">
+  const age = urgent ? urgentAgeBadge(t.latestTs) : { html: "", isOld: false };
+  const cardCls = `card ${urgent ? "urgent" : ""}${age.isOld ? " urgent-old" : ""}`.trim();
+  return `<a class="${cardCls}" href="${t.latestPermalink || "#"}" target="_blank" rel="noopener" data-channel="${t.channelId}">
     ${ignoreBtn}
     <div class="row1">
       <span class="who"><span class="src-icon" title="Slack">💬</span>${escapeHtml(displayWho(t))}</span>
-      <span class="when">${escapeHtml(relTime(t.latestTs))}</span>
+      <span class="when">${age.html}${escapeHtml(relTime(t.latestTs))}</span>
     </div>
     <div class="summary">${summary}</div>
     ${reason}
@@ -2023,11 +2074,13 @@ function renderEmailCard(e, meta, urgent) {
   const ignoreBtn = urgent ? `<button class="ignore-btn" data-ignore-key="${escapeHtml(emailIgnoreKey(e))}">Ignore</button>` : "";
   const subjLine = `<span class="who"><span class="src-icon" title="Email">✉️</span>${escapeHtml(emailDisplayWho(e))}</span>`;
   const subj = `<div style="color:#6e6e73;font-size:12px;margin-top:1px"><em>${escapeHtml(e.subject)}</em></div>`;
-  return `<a class="card ${urgent ? "urgent" : ""}" href="${e.permalink}" target="_blank" rel="noopener" data-thread="${e.threadId}">
+  const age = urgent ? urgentAgeBadge(e.latestTs) : { html: "", isOld: false };
+  const cardCls = `card ${urgent ? "urgent" : ""}${age.isOld ? " urgent-old" : ""}`.trim();
+  return `<a class="${cardCls}" href="${e.permalink}" target="_blank" rel="noopener" data-thread="${e.threadId}">
     ${ignoreBtn}
     <div class="row1">
       ${subjLine}
-      <span class="when">${escapeHtml(relTime(e.latestTs))}</span>
+      <span class="when">${age.html}${escapeHtml(relTime(e.latestTs))}</span>
     </div>
     ${subj}
     <div class="summary">${summary}</div>
@@ -2354,6 +2407,7 @@ async function loadWeek(weekKey, offset) {
     const result = await synthesizeAgendas(meetings);
     const agendasById = Object.fromEntries((result.agendas || []).map(a => [a.id, a.agenda]));
     renderUpcomingMeetings(meetings, weekKey, agendasById);
+    renderWeekVibe(weekKey, result.week_vibe);
     renderWeekRecap(weekKey, result.week_recap, true);
     renderSectionSummaries(weekKey, { meetings_upcoming: result?.section_summaries?.meetings_upcoming || "" });
     return;
@@ -2502,6 +2556,7 @@ async function loadWeek(weekKey, offset) {
   renderCompleted(synth.completed_actions || [], threadsById, emailsById, weekKey);
   // Pass synth diagnostics through to the recap so users can see payload size + duration in-UI
   const recapWithDiag = synth.week_recap ? { ...synth.week_recap, _diag: synth._diag } : synth.week_recap;
+  renderWeekVibe(weekKey, synth.week_vibe);
   renderWeekRecap(weekKey, recapWithDiag, true);
   renderSectionSummaries(weekKey, synth.section_summaries || {});
   if (weekKey === "this") {
@@ -3606,7 +3661,7 @@ async function renderMemoryStakeholderPulse(memory) {
   const el = document.querySelector("#ms-pulse .ms-list");
   if (!el || !memory) return;
   const stakeholders = memory.exec_stakeholders || [];
-  if (!stakeholders.length) { el.className = "ms-list ms-empty"; el.textContent = "—"; return; }
+  if (!stakeholders.length) { el.classList.add("ms-empty"); el.textContent = "—"; return; }
   // Query IDB events from last 90 days; find each stakeholder's most recent mention
   const end = new Date();
   const start = new Date(Date.now() - 90 * 86_400_000);
@@ -3662,6 +3717,7 @@ async function renderOptioMemorySections(events) {
   renderMemoryWorkstreams(memory);
   renderMemoryDecisions(memory);
   renderMemoryMeetings(memory);
+  await renderMemoryStakeholderPulse(memory);
 }
 
 // ============== Next action card(s) ==============

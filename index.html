@@ -100,6 +100,21 @@
   h2.urgent:hover .chevron { background: #ffe4e4; }
   h2.urgent .count { background: #fff; color: #b00020; border-color: #f4cccc; }
   .section-body.collapsed { display: none; }
+  /* Defensive: ensure collapsed bodies hide even if dynamic renders wipe the section-body class */
+  .memory-section .ms-list.collapsed,
+  .week-summary .ws-body-wrap.collapsed,
+  .next-action-stack .na-stack-body.collapsed { display: none; }
+  /* Chevron on non-H2 collapsible headers (memory section labels, week-summary labels, next-action stack label) */
+  .ms-label .chevron, .ws-label .chevron, .na-stack-label .chevron {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px; border-radius: 3px;
+    font-size: 10px; color: #5e3aa6; background: #fff; border: 1px solid #e6e4f0;
+    transition: transform .18s, background .12s;
+    flex-shrink: 0; line-height: 1; margin-right: 6px; vertical-align: middle;
+  }
+  .ms-label.collapsed .chevron, .ws-label.collapsed .chevron, .na-stack-label.collapsed .chevron { transform: rotate(-90deg); }
+  .ms-label:hover, .ws-label:hover, .na-stack-label:hover { opacity: 0.75; }
+  .ms-label:hover .chevron, .ws-label:hover .chevron, .na-stack-label:hover .chevron { background: #f3eaff; }
   .section-summary {
     color: #4a4a4f; font-size: 12.5px; line-height: 1.5; font-style: italic;
     margin: -4px 0 12px 16px; padding-left: 10px; border-left: 2px solid #e6e4f0;
@@ -115,6 +130,34 @@
   }
   .freshness button:hover { background: #f5f5f7; }
   .freshness button:disabled { opacity: 0.5; cursor: default; }
+  .freshness .refresh-ai-btn {
+    background: #f3eaff; border-color: #d9c7f5; color: #5e3aa6; font-weight: 500;
+  }
+  .freshness .refresh-ai-btn:hover { background: #ebdcff; }
+  /* Dormant tab state — non-active tabs that haven't been loaded yet show a single banner instead of skeletons */
+  .tab-content.dormant .skeleton,
+  .tab-content.dormant > h2,
+  .tab-content.dormant > .week-summary,
+  .tab-content.dormant > .freshness,
+  .tab-content.dormant > .memory-block,
+  .tab-content.dormant > .next-action-stack,
+  .tab-content.dormant > [id$="-urgent"],
+  .tab-content.dormant > [id$="-convos"],
+  .tab-content.dormant > [id$="-emails"],
+  .tab-content.dormant > [id$="-past"],
+  .tab-content.dormant > [id$="-tickets"],
+  .tab-content.dormant > [id$="-linear"],
+  .tab-content.dormant > [id$="-done"],
+  .tab-content.dormant > [id$="-up"] {
+    display: none;
+  }
+  .dormant-banner {
+    margin: 30px auto; max-width: 480px; text-align: center;
+    background: #fafafa; border: 1px dashed #d2d2d7; border-radius: 12px;
+    padding: 24px 20px; color: #1d1d1f;
+  }
+  .dormant-banner .db-title { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  .dormant-banner .db-sub { font-size: 12.5px; color: #6e6e73; line-height: 1.5; }
   .cache-info {
     display: flex; justify-content: space-between; align-items: center;
     margin-top: 18px; padding-top: 10px; border-top: 1px solid #ececec;
@@ -457,6 +500,21 @@
     font-size: 12.5px; padding: 4px 0;
   }
   .memory-section .ms-pulse-name { font-weight: 500; color: #1d1d1f; }
+  .memory-section .ms-plaud-row {
+    display: flex; gap: 10px; align-items: baseline; font-size: 12.5px; line-height: 1.5;
+    padding: 4px 0; border-bottom: 1px dashed #f5f5f7;
+    text-decoration: none; color: inherit;
+  }
+  .memory-section .ms-plaud-row:last-child { border-bottom: none; }
+  .memory-section .ms-plaud-row:hover { background: #f8f7fb; }
+  .memory-section .ms-plaud-row .ms-date {
+    color: #8e8e93; font-size: 11px; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    flex-shrink: 0; min-width: 84px;
+  }
+  .memory-section .ms-plaud-row .ms-plaud-topic { color: #1d1d1f; flex: 1; }
+  .memory-section .ms-plaud-row .ms-plaud-age {
+    color: #8e8e93; font-size: 11px; flex-shrink: 0; min-width: 28px; text-align: right;
+  }
   .memory-section .ms-pulse-days {
     font-size: 11px; padding: 1px 8px; border-radius: 9px;
     font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
@@ -767,6 +825,10 @@
         <div class="ms-label">Recent decisions <span class="ms-source">~/optio/memory.md</span></div>
         <div class="ms-list ms-empty">—</div>
       </div>
+      <div class="memory-section" id="ms-plaud">
+        <div class="ms-label">Recent meeting transcripts <span class="ms-source">~/optio/Meeting Transcripts/</span></div>
+        <div class="ms-list ms-empty">—</div>
+      </div>
     </div>
     <div class="next-action-stack" id="this-next-actions" style="display:none"></div>
     <h2 class="urgent">Needs reply <span class="count" id="this-urgent-count">…</span></h2>
@@ -909,6 +971,21 @@
     {"name": "Daniel Kelly",      "aliases": ["Daniel Kelly", "Dan Kelly"]},
     {"name": "Knut Finstad",      "aliases": ["Knut Finstad", "Knut Dagfinn Finstad"]},
     {"name": "Benjamin Roach",    "aliases": ["Benjamin Roach", "Benjamin"]}
+  ],
+  "plaud_transcripts": [
+    {"date": "2026-05-11", "topic": "Weekly Meeting — Gemini Enterprise rollout, GDPR compliance, CS AI enablement", "file": "2026-05-11_05-11-Weekly-Meeting-Gemini-Enterprise-Rollout-GDPR-Compliance-and-CS-AI-Enablem_7c808a4f.md"},
+    {"date": "2026-05-11", "topic": "Weekly Meeting — Financial data reconciliation, churn analysis",                "file": "2026-05-11_05-11-Weekly-Meeting-Financial-Data-Reconciliation-Churn-Analysis_0d120945.md"},
+    {"date": "2026-05-11", "topic": "RevOps — CRM automation fix, Clay enrichment immediate task/report",            "file": "2026-05-11_05-11-RevOps-fix-for-CRM-automation-failing-Clay-enrichment-immediate-taskreport_61844026.md"},
+    {"date": "2026-05-11", "topic": "Reasoning note — Tax ID data access request",                                   "file": "2026-05-11_05-11-Reasoning-Note-Tax-ID-Data-Access-Request_b05a14b0.md"},
+    {"date": "2026-05-11", "topic": "Meeting — BI tool evaluation, Sigma vs Omni",                                   "file": "2026-05-11_05-11-Meeting-BI-Tool-Evaluation---Sigma-vs-Omni_c3640252.md"},
+    {"date": "2026-05-11", "topic": "Meeting — ARR reconciliation, KPI uplifts, HubSpot integration plan",           "file": "2026-05-11_05-11-Meeting-ARR-Reconciliation-KPI-Uplifts-and-HubSpot-Integration-Plan_051b6fd4.md"},
+    {"date": "2026-05-11", "topic": "Meeting — AI tooling oversight, engineering hiring, data pipeline to BigQuery", "file": "2026-05-11_05-11-Meeting-AI-Tooling-Oversight-Engineering-Hiring-Data-Pipeline-to-BigQuery-_5a25251a.md"},
+    {"date": "2026-05-08", "topic": "Weekly Meeting — SPS data integration, ARR reconciliation, HubSpot migration",  "file": "2026-05-08_05-08-Weekly-Meeting-SPS-Data-Integration-ARR-Reconciliation-and-HubSpot-Migrati_82f75cd6.md"},
+    {"date": "2026-05-08", "topic": "Weekly Meeting — Product data sprawl, BI tool evaluation, customer analytics",  "file": "2026-05-08_05-08-Weekly-Meeting-Product-Data-Sprawl-BI-Tool-Evaluation-and-Customer-Analyti_d370640c.md"},
+    {"date": "2026-05-08", "topic": "Sales POC review — Sigma vs Omni for FP&A and RevOps forecasting",              "file": "2026-05-08_05-08-Sales-POC-Review-Sigma-vs-Omni-for-FPA-and-RevOps-Forecasting_77f2c4c8.md"},
+    {"date": "2026-05-08", "topic": "Meeting — ARR reconciliation, KPI uplifts, FX conversions, BI/HubSpot",         "file": "2026-05-08_05-08-Meeting-ARR-Reconciliation-KPI-Uplifts-Currency-Conversions-and-BIHubSpot-_24b34803.md"},
+    {"date": "2026-05-08", "topic": "Financial reporting module — deep dive in Optio",                                "file": "2026-05-08_05-08-Financial-Reporting-Module-Deep-Dive-in-Optio_4e7177f9.md"},
+    {"date": "2026-05-08", "topic": "Consultation — Dan from Optio, Fivetran evaluation",                            "file": "2026-05-08_05-08-Consultation-Dan-from-Optio---Fivetran-Evaluation_6ef62286.md"}
   ]
 }
 </script>
@@ -1604,49 +1681,59 @@ async function synthesize(threads, emails, pastMeetings, upcomingMeetings, cowor
   const synthThreads = threads.filter(slackThreadIsInteresting);
   const synthEmails = emails.filter(emailThreadIsInteresting);
 
+  const memory = getOptioMemory() || {};
+  // Compact memory context — kept small and inlined into the prompt below to avoid bloating the data payload.
+  const memorySummary = {
+    workstreams: (memory.active_workstreams || []).map(w => `${w.slug || w.name}: ${w.status || ""}`).join(" | "),
+    decisions: (memory.recent_decisions || []).slice(0, 5).map(d => `${d.date} (${d.workstream||"-"}): ${d.text}`).join(" || "),
+    plaud_topics: (memory.plaud_transcripts || []).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""))
+      .slice(0, 12).map(t => `${t.date}: ${t.topic}`).join(" || ")
+  };
+  // Aggressive caps — earlier versions of this payload were timing out Haiku at 60s.
+  // Trim per-item text and total item counts to keep input + expected output well under Haiku's window.
   const payload = {
     me: ME_NAME,
     week: weekKey,
-    cowork_sessions: (coworkSessions || []).map(s => ({
+    cowork_sessions: (coworkSessions || []).slice(0, 10).map(s => ({
       id: s.id, title: s.title,
-      first_user_message: s.first_user,
-      last_assistant_message: s.last_assistant,
+      first_user_message: (s.first_user || "").slice(0, 200),
+      last_assistant_message: (s.last_assistant || "").slice(0, 200),
       message_count: s.message_count
     })),
-    threads: synthThreads.map(t => ({
+    threads: synthThreads.slice(0, 20).map(t => ({
       id: t.channelId,
       who: displayWho(t),
       sources: [...t.sources],
       latest_from: t.latestFrom,
       latest_from_is_me: t.latestFromId === ME,
-      latest_text: t.latestText,
+      latest_text: (t.latestText || "").slice(0, 300),
       permalink: t.latestPermalink,
-      recent_messages: t.messages.slice(-12).map(m => ({
-        from: m.from, is_me: m.fromId === ME, text: (m.text || "").slice(0, 400)
+      recent_messages: t.messages.slice(-6).map(m => ({
+        from: m.from, is_me: m.fromId === ME, text: (m.text || "").slice(0, 200)
       })),
-      context_before: (t.contextBefore || "").slice(0, 1200)
+      context_before: (t.contextBefore || "").slice(0, 400)
     })),
-    emails: synthEmails.map(e => ({
+    emails: synthEmails.slice(0, 15).map(e => ({
       id: e.threadId,
       subject: e.subject,
       who: emailDisplayWho(e),
       latest_from: e.latestFromName,
       latest_from_is_me: e.latestFromMe,
-      latest_snippet: e.latestSnippet,
+      latest_snippet: (e.latestSnippet || "").slice(0, 300),
       permalink: e.permalink,
-      recent_messages: e.messages.slice(-8).map(m => ({
-        from: m.from, is_me: m.isMe, text: (m.text || "").slice(0, 400)
+      recent_messages: e.messages.slice(-4).map(m => ({
+        from: m.from, is_me: m.isMe, text: (m.text || "").slice(0, 200)
       }))
     })),
-    past_meetings: pastMeetings.map(m => ({
-      id: m.id, title: m.title, when: m.when, attendees: m.attendees,
-      notes_snippet: (m.notesSnippet || "").slice(0, 3000),
-      description: stripHtml(m.description || "").slice(0, 1500),
+    past_meetings: pastMeetings.slice(0, 12).map(m => ({
+      id: m.id, title: m.title, when: m.when, attendees: (m.attendees || "").slice(0, 200),
+      notes_snippet: (m.notesSnippet || "").slice(0, 1000),
+      description: stripHtml(m.description || "").slice(0, 400),
       scheduled_by_me_this_week: !!m.createdByMeInWindow
     })),
-    upcoming_meetings: upcomingMeetings.map(m => ({
-      id: m.id, title: m.title, when: m.when, attendees: m.attendees,
-      description: stripHtml(m.description || "").slice(0, 1500),
+    upcoming_meetings: upcomingMeetings.slice(0, 10).map(m => ({
+      id: m.id, title: m.title, when: m.when, attendees: (m.attendees || "").slice(0, 200),
+      description: stripHtml(m.description || "").slice(0, 400),
       scheduled_by_me_this_week: !!m.createdByMeInWindow
     }))
   };
@@ -1658,6 +1745,12 @@ async function synthesize(threads, emails, pastMeetings, upcomingMeetings, cowor
   const prompt = [
     "You analyze a week of Dan's Slack activity, email, and meetings, and produce a digest.",
     "Dan is Director of Data at Optio Incentives. His work centers on BI tooling, ARR reconciliation, OFS data model, financial reporting, and vendor demos.",
+    "",
+    `Dan's current context (use as ground truth — don't recommend things that contradict it):`,
+    `  Active workstreams: ${memorySummary.workstreams || "(none)"}`,
+    `  Recent decisions: ${memorySummary.decisions || "(none)"}`,
+    `  Plaud transcripts this week (date: topic — bodies NOT loaded): ${memorySummary.plaud_topics || "(none)"}`,
+    `Use Plaud topics as supporting evidence in completed_actions (meetings that actually happened). Don't propose linear_actions just because a Plaud entry exists.`,
     "",
     "PHRASE LIBRARY — use these as anchors when detecting asks, commitments, and completions. They are signals, not exhaustive — judgment still applies, and context matters.",
     "",
@@ -1731,17 +1824,28 @@ async function synthesize(threads, emails, pastMeetings, upcomingMeetings, cowor
     "",
     "Return STRICT JSON: {\"threads\":[...], \"emails\":[...], \"meeting_summaries\":[...], \"meeting_agendas\":[...], \"linear_actions\":[...], \"completed_actions\":[...], \"section_summaries\":{\"conversations\":\"...\",\"email\":\"...\",\"meetings_past\":\"...\",\"meetings_upcoming\":\"...\",\"open_work\":\"...\",\"completed\":\"...\"}, \"week_recap\":{\"worked_on\":\"...\",\"talked_about\":\"...\",\"planned\":\"...\"}, \"next_actions\":[{\"title\":\"...\",\"why\":\"...\",\"source_label\":\"...\"}]}. No markdown fences."
   ].join("\n");
+  // Diagnostics that surface in the UI (since Claude desktop hides the dev console)
+  const payloadSize = JSON.stringify(payload).length;
+  const promptSize = prompt.length;
+  const diag = `${(payloadSize/1024).toFixed(1)}KB payload · ${payload.threads.length} threads, ${payload.emails.length} emails, ${payload.past_meetings.length+payload.upcoming_meetings.length} meetings`;
   try {
-    const resp = await window.cowork.askClaude(prompt, [payload]);
+    // 60s timeout — Haiku should finish well under this. If it doesn't, fail visibly rather than hang.
+    const timeoutMs = 60_000;
+    const t0 = performance.now();
+    const timeoutP = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`askClaude timed out after ${timeoutMs/1000}s`)), timeoutMs));
+    const resp = await Promise.race([window.cowork.askClaude(prompt, [payload]), timeoutP]);
+    const elapsedS = ((performance.now()-t0)/1000).toFixed(1);
     const txt = typeof resp === "string" ? resp : (resp?.text || JSON.stringify(resp));
     const m = txt.match(/\{[\s\S]*\}/);
-    if (!m) return {};
+    if (!m) { return { _error: `Model returned no JSON · ${diag} · took ${elapsedS}s` }; }
     const parsed = JSON.parse(m[0]);
+    parsed._diag = `Synthesized in ${elapsedS}s · ${diag}`;
     cacheSet(synthCacheKey, parsed);
     return parsed;
   } catch (e) {
     console.error("askClaude failed", e);
-    return {};
+    return { _error: `${e.message || String(e)} · ${diag}` };
   }
 }
 
@@ -1885,7 +1989,12 @@ function renderWeekRecap(weekKey, recap, hadAnyData) {
   if (recap.planned && recap.planned.trim()) {
     blocks.push(`<div class="ws-block"><div class="ws-heading">Planned</div><div class="ws-body">${escapeHtml(recap.planned)}</div></div>`);
   }
-  el.innerHTML = `<div class="ws-label">${labels[weekKey]}</div>${blocks.join("")}`;
+  const diagLine = recap._diag
+    ? `<div class="ws-diag" style="margin-top:8px;font-size:10.5px;color:#a8a8ad;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${escapeHtml(recap._diag)}</div>`
+    : "";
+  el.innerHTML = `<div class="ws-label">${labels[weekKey]}</div>${blocks.join("")}${diagLine}`;
+  // Re-wire collapsibles since innerHTML wiped the previous wrap + chevron
+  if (typeof setupCollapsibles === "function") setupCollapsibles();
 }
 
 function slackIgnoreKey(t) { return `slack:${t.channelId}:${t.latestTs}`; }
@@ -2336,18 +2445,24 @@ async function loadWeek(weekKey, offset) {
     renderOptioMemorySections(events).catch(e => console.warn("memory render failed", e));
   }
 
-  // Initial render with placeholders
+  // Initial render with placeholders — wrap each in try so one failure doesn't break the rest
   const empty = {};
-  if (weekKey === "this") renderUrgent(threads, emails, empty, empty, weekKey);
-  renderConvos(threads, empty, weekKey);
-  renderEmails(emails, empty, weekKey);
-  renderPastMeetings(pastMeetings, threads, empty, weekKey, {});
-  if (weekKey === "this") renderUpcomingMeetings(upcomingMeetings, weekKey, {});
-  renderFreshness(weekKey, offset);
-  renderCacheInfo();
+  const safe = (label, fn) => { try { fn(); } catch (e) { console.error(`render ${label} failed`, e); } };
+  if (weekKey === "this") safe("urgent", () => renderUrgent(threads, emails, empty, empty, weekKey));
+  safe("convos", () => renderConvos(threads, empty, weekKey));
+  safe("emails", () => renderEmails(emails, empty, weekKey));
+  safe("past",   () => renderPastMeetings(pastMeetings, threads, empty, weekKey, {}));
+  if (weekKey === "this") safe("upcoming", () => renderUpcomingMeetings(upcomingMeetings, weekKey, {}));
+  safe("freshness", () => renderFreshness(weekKey, offset));
+  safe("cacheinfo", () => renderCacheInfo());
+  // Show visible "Synthesizing…" status in Week So Far and AI-driven sections so it's obvious what's pending
+  const wsPendingEl = document.getElementById(`${weekKey}-summary`);
+  if (wsPendingEl) wsPendingEl.innerHTML = `<div class="ws-label">Week so far</div><div class="ws-body" style="color:#8e8e93;font-style:italic">Synthesizing AI summary… (up to 60s)</div>`;
   if (weekKey === "this" || weekKey === "last") {
     const linEl = document.getElementById(`${weekKey}-linear`);
     if (linEl) linEl.innerHTML = `<div class="empty">Synthesizing…</div>`;
+    const doneEl = document.getElementById(`${weekKey}-done`);
+    if (doneEl) doneEl.innerHTML = `<div class="empty">Synthesizing…</div>`;
   }
 
   if (!threads.length && !emails.length && !pastMeetings.length && !upcomingMeetings.length) {
@@ -2356,6 +2471,22 @@ async function loadWeek(weekKey, offset) {
   }
 
   const synth = await synthesize(threads, emails, pastMeetings, upcomingMeetings, coworkSessions, weekKey);
+  // If synth itself failed, surface it visibly in the AI-driven sections.
+  if (synth._error) {
+    const errMsg = `AI synthesis failed: ${synth._error}. Click "↻ AI" to retry — source data is still fresh.`;
+    const wsEl = document.getElementById(`${weekKey}-summary`);
+    if (wsEl) wsEl.innerHTML = `<div class="ws-label">Week so far</div><div class="ws-body" style="color:#b00020">${escapeHtml(errMsg)}</div>`;
+    for (const id of [`${weekKey}-urgent`, `${weekKey}-linear`, `${weekKey}-done`]) {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = `<div class="empty" style="color:#b00020">${escapeHtml(errMsg)}</div>`;
+    }
+    // Still render the non-AI pieces (raw conversations, meetings) so the tab isn't empty.
+    renderConvos(threads, {}, weekKey);
+    renderEmails(emails, {}, weekKey);
+    renderPastMeetings(pastMeetings, threads, {}, weekKey, {});
+    if (weekKey === "this") renderUpcomingMeetings(upcomingMeetings, weekKey, {});
+    return;
+  }
   const threadMeta = Object.fromEntries((synth.threads || []).map(t => [t.id, t]));
   const emailMeta = Object.fromEntries((synth.emails || []).map(e => [e.id, e]));
   const summariesById = Object.fromEntries((synth.meeting_summaries || []).map(s => [s.id, s.summary]));
@@ -2369,7 +2500,9 @@ async function loadWeek(weekKey, offset) {
   const emailsById = Object.fromEntries(emails.map(e => [e.threadId, e]));
   renderLinear(synth.linear_actions || [], threadsById, weekKey);
   renderCompleted(synth.completed_actions || [], threadsById, emailsById, weekKey);
-  renderWeekRecap(weekKey, synth.week_recap, true);
+  // Pass synth diagnostics through to the recap so users can see payload size + duration in-UI
+  const recapWithDiag = synth.week_recap ? { ...synth.week_recap, _diag: synth._diag } : synth.week_recap;
+  renderWeekRecap(weekKey, recapWithDiag, true);
   renderSectionSummaries(weekKey, synth.section_summaries || {});
   if (weekKey === "this") {
     // Support both new (next_actions plural) and legacy (next_action singular) shapes
@@ -2394,6 +2527,12 @@ function setActiveTab(key) {
     document.querySelector(`.tab[data-week="${w.key}"]`)?.classList.toggle("active", w.key === key);
   }
   localStorage.setItem(ACTIVE_TAB_KEY, key);
+  // Clear dormant state on the newly-active pane
+  const activePane = document.querySelector(`.tab-content[data-week="${key}"]`);
+  if (activePane) {
+    activePane.classList.remove("dormant");
+    activePane.querySelector(".dormant-banner")?.remove();
+  }
   if (!loadedTabs.has(key)) {
     loadedTabs.add(key);
     const w = WEEKS.find(x => x.key === key);
@@ -2402,6 +2541,28 @@ function setActiveTab(key) {
     } else {
       loadWeek(key, w.offset).catch(e => console.error("loadWeek failed", key, e));
     }
+  }
+}
+
+// Mark inactive tabs as dormant so it's obvious they aren't loading.
+// Replaces skeleton placeholders inside non-active tabs with a single "Not loaded — switch tabs to load" notice.
+function markDormantTabs(activeKey) {
+  for (const w of WEEKS) {
+    if (w.key === activeKey) continue;
+    if (loadedTabs.has(w.key)) continue;
+    const pane = document.querySelector(`.tab-content[data-week="${w.key}"]`);
+    if (!pane) continue;
+    // Hide all the skeleton-laden sections; show a single banner.
+    if (!pane.querySelector(".dormant-banner")) {
+      const banner = document.createElement("div");
+      banner.className = "dormant-banner";
+      banner.innerHTML = `<div class="db-title">${escapeHtml(w.label)} hasn't been loaded.</div>
+        <div class="db-sub">Click this tab in the nav above to load it. Past weeks cache forever; the current week refreshes every 6 hours.</div>`;
+      // Insert at top of the tab body
+      pane.insertBefore(banner, pane.firstChild);
+    }
+    // Hide skeletons inside this pane until they're actually populated
+    pane.classList.add("dormant");
   }
 }
 
@@ -2505,8 +2666,11 @@ function renderFreshness(weekKey, offset) {
   const ageStr = ts
     ? `Last refreshed ${fmtAbsEst(ts)} · ${fmtAge(Date.now() - ts)}`
     : "Loading…";
-  el.innerHTML = `<span>${escapeHtml(ageStr)}</span><button class="refresh-btn">Refresh</button>`;
-  el.querySelector(".refresh-btn").addEventListener("click", () => refreshWeek(weekKey, offset));
+  el.innerHTML = `<span>${escapeHtml(ageStr)}</span>`
+    + `<button class="refresh-btn refresh-ai-btn" title="Re-run AI synthesis against existing cached source data (fast — single Haiku call, no MCP re-fetch)">↻ AI</button>`
+    + `<button class="refresh-btn">Refresh all</button>`;
+  el.querySelector(".refresh-btn:not(.refresh-ai-btn)").addEventListener("click", () => refreshWeek(weekKey, offset));
+  el.querySelector(".refresh-ai-btn").addEventListener("click", () => refreshAI(weekKey, offset));
 }
 async function refreshWeek(weekKey, offset) {
   const dateKey = dataKeyForWeek(weekKey, offset);
@@ -2523,6 +2687,23 @@ async function refreshWeek(weekKey, offset) {
     if (el) el.innerHTML = `<div class="skeleton"></div>`;
   }
   await loadWeek(weekKey, offset);
+  renderFreshness(weekKey, offset);
+  renderCacheInfo();
+}
+// Lighter refresh — only re-runs AI synthesis. Keeps Slack/Gmail/Calendar/Drive/Linear/Cowork caches intact.
+// One Haiku call, fast. Use this when you want fresh AI outputs but trust the underlying data.
+async function refreshAI(weekKey, offset) {
+  // Clear synth caches for this tab only
+  cacheClear(`synth:${weekKey}:`);
+  if (weekKey === "next") cacheClear(`synth:next:`);
+  // Reset just the AI-driven sections (leave Linear tickets, raw conversation list, etc. in place)
+  for (const id of [`${weekKey}-summary`, `${weekKey}-urgent`, `${weekKey}-linear`, `${weekKey}-done`, `${weekKey}-next-up`]) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<div class="skeleton"></div>`;
+  }
+  const naEl = document.getElementById(`${weekKey}-next-actions`);
+  if (naEl) { naEl.style.display = "none"; naEl.innerHTML = ""; }
+  await loadWeek(weekKey, offset);  // source caches still hit; only synth runs fresh
   renderFreshness(weekKey, offset);
   renderCacheInfo();
 }
@@ -2560,36 +2741,92 @@ function sectionKey(headerEl) {
   const label = (headerEl.textContent || "").replace(/\s+/g, " ").trim().split(/\s/).slice(0, 4).join(" ");
   return `${tab}::${label}`;
 }
-function setupCollapsibles() {
-  // Sections are COLLAPSED by default; only those whose key is in EXPANDED_KEY are open.
+// Generic helper: make a (header, body) pair collapsible with persisted state.
+// defaultCollapsed=false means the section is expanded on first load.
+function wireCollapsible(headerEl, bodyEl, key, defaultCollapsed) {
+  if (!headerEl || !bodyEl) return;
+  if (headerEl.dataset.collapsibleWired === "1") return;
+  headerEl.dataset.collapsibleWired = "1";
+  // Inject chevron at the start of the header if not present
+  if (!headerEl.querySelector(".chevron")) {
+    const chev = document.createElement("span");
+    chev.className = "chevron"; chev.textContent = "▾";
+    headerEl.insertBefore(chev, headerEl.firstChild);
+  }
+  if (!bodyEl.classList.contains("section-body")) bodyEl.classList.add("section-body");
+  headerEl.style.cursor = "pointer";
   const expanded = lsGetSet(EXPANDED_KEY);
+  // Default state: H2 sections collapse by default; "soft" sections (memory, week-summary, next-actions) expand by default.
+  const isExpanded = defaultCollapsed ? expanded.has(key) : !expanded.has("collapsed:" + key);
+  if (!isExpanded) {
+    headerEl.classList.add("collapsed");
+    bodyEl.classList.add("collapsed");
+  }
+  headerEl.addEventListener("click", () => {
+    const set = lsGetSet(EXPANDED_KEY);
+    const wasCollapsed = headerEl.classList.contains("collapsed");
+    if (wasCollapsed) {
+      headerEl.classList.remove("collapsed"); bodyEl.classList.remove("collapsed");
+      if (defaultCollapsed) set.add(key); else set.delete("collapsed:" + key);
+    } else {
+      headerEl.classList.add("collapsed"); bodyEl.classList.add("collapsed");
+      if (defaultCollapsed) set.delete(key); else set.add("collapsed:" + key);
+    }
+    lsSetSet(EXPANDED_KEY, set);
+  });
+}
+
+function setupCollapsibles() {
+  // 1) Section H2s — default collapsed (skim mode for raw lists)
   for (const h of document.querySelectorAll(".tab-content h2")) {
-    // Skip if this h2 lives inside the timeline tab content area (timeline doesn't use h2 sections)
     if (h.closest('.tab-content[data-week="timeline"]')) continue;
-    // Inject chevron if not present
-    if (!h.querySelector(".chevron")) {
-      const chev = document.createElement("span");
-      chev.className = "chevron"; chev.textContent = "▾";
-      h.insertBefore(chev, h.firstChild);
-    }
-    // Mark sibling body
     const body = h.nextElementSibling;
-    if (body && !body.classList.contains("section-body")) body.classList.add("section-body");
-    const key = sectionKey(h);
-    if (!expanded.has(key)) {
-      // Default = collapsed
-      h.classList.add("collapsed");
-      body?.classList.add("collapsed");
+    wireCollapsible(h, body, sectionKey(h), /*defaultCollapsed=*/true);
+  }
+  // 2) memory.md sections (Active workstreams, Recent decisions, Recent Plaud transcripts) — default expanded
+  for (const sect of document.querySelectorAll(".memory-section")) {
+    const label = sect.querySelector(".ms-label");
+    const body = sect.querySelector(".ms-list");
+    if (!label || !body) continue;
+    const key = "memory::" + (sect.id || (label.textContent || "").trim().slice(0, 30));
+    wireCollapsible(label, body, key, /*defaultCollapsed=*/false);
+  }
+  // 3) Week summary blocks — default expanded
+  for (const ws of document.querySelectorAll(".week-summary")) {
+    const label = ws.querySelector(".ws-label");
+    if (!label) continue;
+    // Body = wrap all non-label siblings in a body div so we can toggle them together
+    let body = ws.querySelector(".ws-body-wrap");
+    if (!body) {
+      body = document.createElement("div");
+      body.className = "ws-body-wrap";
+      // Move all siblings of .ws-label into body
+      const toMove = [];
+      let sib = label.nextElementSibling;
+      while (sib) { toMove.push(sib); sib = sib.nextElementSibling; }
+      for (const el of toMove) body.appendChild(el);
+      ws.appendChild(body);
     }
-    h.addEventListener("click", () => {
-      const set = lsGetSet(EXPANDED_KEY);
-      if (h.classList.contains("collapsed")) {
-        h.classList.remove("collapsed"); body?.classList.remove("collapsed"); set.add(key);
-      } else {
-        h.classList.add("collapsed"); body?.classList.add("collapsed"); set.delete(key);
-      }
-      lsSetSet(EXPANDED_KEY, set);
-    });
+    const tab = ws.closest(".tab-content")?.dataset.week || "x";
+    wireCollapsible(label, body, `week-summary::${tab}`, /*defaultCollapsed=*/false);
+  }
+  // 4) Next-action stack — uses the existing .na-stack-label as header (rendered by renderNextActions).
+  // Wrap the cards (everything after the label) in a body for toggling.
+  for (const stack of document.querySelectorAll(".next-action-stack")) {
+    const label = stack.querySelector(".na-stack-label");
+    if (!label) continue;  // Empty state has no list to collapse
+    const tab = stack.closest(".tab-content")?.dataset.week || "x";
+    let body = stack.querySelector(".na-stack-body");
+    if (!body) {
+      body = document.createElement("div");
+      body.className = "na-stack-body";
+      const toMove = [];
+      let sib = label.nextElementSibling;
+      while (sib) { toMove.push(sib); sib = sib.nextElementSibling; }
+      for (const el of toMove) body.appendChild(el);
+      stack.appendChild(body);
+    }
+    wireCollapsible(label, body, `next-actions::${tab}`, /*defaultCollapsed=*/false);
   }
 }
 
@@ -3314,8 +3551,8 @@ function renderMemoryWorkstreams(memory) {
   const el = document.querySelector("#ms-workstreams .ms-list");
   if (!el || !memory) return;
   const items = memory.active_workstreams || [];
-  if (!items.length) { el.className = "ms-list ms-empty"; el.textContent = "—"; return; }
-  el.className = "ms-list";
+  if (!items.length) { el.classList.add("ms-empty"); el.textContent = "—"; return; }
+  el.classList.remove("ms-empty");
   el.innerHTML = items.map(w => {
     const days = daysSince(w.last_touched);
     const cls = staleClassFor(days);
@@ -3346,8 +3583,8 @@ function renderMemoryDecisions(memory) {
   const el = document.querySelector("#ms-decisions .ms-list");
   if (!el || !memory) return;
   const items = (memory.recent_decisions || []).slice(0, 5);
-  if (!items.length) { el.className = "ms-list ms-empty"; el.textContent = "—"; return; }
-  el.className = "ms-list";
+  if (!items.length) { el.classList.add("ms-empty"); el.textContent = "—"; return; }
+  el.classList.remove("ms-empty");
   el.innerHTML = items.map(d => {
     const badge = workstreamBadge(d.workstream);
     const superseded = d.superseded
@@ -3390,7 +3627,7 @@ async function renderMemoryStakeholderPulse(memory) {
     const days = mostRecent ? Math.floor((Date.now() - mostRecent) / 86_400_000) : null;
     return { name: s.name, days };
   });
-  el.className = "ms-list";
+  el.classList.remove("ms-empty");
   el.innerHTML = rows.map(r => {
     const cls = r.days == null ? "stale" : staleClassFor(r.days);
     const text = r.days == null ? "no mention in 90d" : `${r.days}d ago`;
@@ -3401,11 +3638,30 @@ async function renderMemoryStakeholderPulse(memory) {
   }).join("");
 }
 
-function renderOptioMemorySections(events) {
+function renderMemoryPlaud(memory) {
+  const el = document.querySelector("#ms-plaud .ms-list");
+  if (!el || !memory) return;
+  const items = (memory.plaud_transcripts || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 8);
+  if (!items.length) { el.classList.add("ms-empty"); el.textContent = "—"; return; }
+  const PLAUD_BASE = "file:///Users/danielben-atar/Claude/Claude%20Memory/optio/Meeting%20Transcripts/";
+  el.classList.remove("ms-empty");
+  el.innerHTML = items.map(t => {
+    const url = PLAUD_BASE + encodeURIComponent(t.file);
+    const days = daysSince(t.date);
+    return `<a class="ms-plaud-row" href="${escapeHtml(url)}" title="${escapeHtml(t.file)}">
+      <span class="ms-date">${escapeHtml(t.date || "")}</span>
+      <span class="ms-plaud-topic">${escapeHtml(t.topic || t.file || "")}</span>
+      <span class="ms-plaud-age">${days}d</span>
+    </a>`;
+  }).join("");
+}
+
+async function renderOptioMemorySections(events) {
   const memory = getOptioMemory();
   if (!memory) return;
   renderMemoryWorkstreams(memory);
   renderMemoryDecisions(memory);
+  renderMemoryPlaud(memory);
 }
 
 // ============== Next action card(s) ==============
@@ -3473,6 +3729,8 @@ function renderNextActions(weekKey, actions) {
     });
     el.appendChild(card);
   });
+  // Re-wire collapsibles since this function rebuilds innerHTML
+  if (typeof setupCollapsibles === "function") setupCollapsibles();
 }
 
 // ============== Chat panel ==============
@@ -3529,9 +3787,18 @@ async function buildChatContext() {
     const hit = cacheGet(k.slice(CACHE_PREFIX.length), Infinity);
     if (hit && hit.data && hit.data.week_recap) { recentRecap = hit.data.week_recap; break; }
   }
+  const memory = getOptioMemory() || {};
+  // Compact memory strings (kept small — full memory text is in the prompt itself)
+  const memoryStrings = {
+    workstreams: (memory.active_workstreams || []).map(w => `${w.slug || w.name}: ${w.status || ""} — Next: ${w.next_action || "—"}`).join(" | "),
+    decisions: (memory.recent_decisions || []).slice(0, 6).map(d => `${d.date}: ${d.text}`).join(" || "),
+    plaud_topics: (memory.plaud_transcripts || []).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""))
+      .slice(0, 12).map(t => `${t.date}: ${t.topic}`).join(" || ")
+  };
   return {
     me: ME_NAME,
     today: new Date().toISOString().slice(0, 16),
+    memory_context: memoryStrings,
     this_week_metrics: thisMetrics,
     weekly_metrics_history: allMetrics.slice(-12),
     recent_events_count_by_source: recentEvents.reduce((a, e) => { a[e.source] = (a[e.source]||0)+1; return a; }, {}),
@@ -3648,6 +3915,12 @@ async function chatSend(question) {
       `You are an assistant integrated into Dan's Daily Hub — a personal dashboard that pulls his Slack, Email, Calendar, Linear tickets, and Cowork session activity.`,
       `Dan is Director of Data at Optio Incentives. Be concise, specific, opinionated. Cite specific tickets / threads / meetings by name when relevant. Use second person ('you').`,
       `Today is ${ctx.today}.`,
+      "",
+      `# Dan's current context (use as ground truth):`,
+      `Workstreams: ${ctx.memory_context?.workstreams || "(none)"}`,
+      `Recent decisions: ${ctx.memory_context?.decisions || "(none)"}`,
+      `Plaud meetings (date: topic — bodies not loaded): ${ctx.memory_context?.plaud_topics || "(none)"}`,
+      `When asked "what should I work on", lean on workstream Next actions. When asked about a recent meeting topic, cross-reference Plaud topics with recent_events_sample.`,
       "",
       `# You can take actions on Dan's behalf`,
       `When the user asks you to DO something (create a ticket, schedule a meeting, mark something done), include actions in your response.`,
@@ -3806,6 +4079,7 @@ async function main() {
   loadTeams();
   const saved = localStorage.getItem(ACTIVE_TAB_KEY) || "this";
   setActiveTab(saved);
+  markDormantTabs(saved);
 }
 
 main().catch(e => {

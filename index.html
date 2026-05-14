@@ -1154,6 +1154,19 @@ function djb2(s) {
   return (h >>> 0).toString(36);
 }
 
+// Stable content-hash key for synth-generated action items.
+// The model uses sequential IDs (la-1, ca-1) that collide week-to-week, so
+// dismissals/created-state were silently hiding new suggestions. Hashing
+// semantically meaningful fields gives same-content → same-key across weeks.
+function stableActionKey(action) {
+  return djb2(
+    ((action.title || "") + "::" +
+     (action.source_permalink || "") + "::" +
+     (action.suggested_team_hint || "")
+    ).toLowerCase()
+  );
+}
+
 // ============== IndexedDB persistence ==============
 // Two stores:
 //  - events: flat dated log (id, timestamp, source, payload). Queried by date range.
@@ -1956,7 +1969,7 @@ async function createInLinear(action, btn) {
   const obj = extractObject(r);
   const created = lsGetObj(CREATED_KEY);
   const issueId = obj?.issue?.identifier || obj?.identifier || obj?.issue?.id || "(created)";
-  created[action.id] = { id: issueId, ts: Date.now() };
+  created[stableActionKey(action)] = { id: issueId, ts: Date.now() };
   lsSetObj(CREATED_KEY, created);
   cacheClear("tickets:me");
   btn.classList.remove("primary");
@@ -1979,7 +1992,7 @@ async function logAsDone(action, btn) {
   const obj = extractObject(r);
   const logged = lsGetObj(LOGGED_DONE_KEY);
   const issueId = obj?.issue?.identifier || obj?.identifier || obj?.issue?.id || "(logged)";
-  logged[action.id] = { id: issueId, ts: Date.now() };
+  logged[stableActionKey(action)] = { id: issueId, ts: Date.now() };
   lsSetObj(LOGGED_DONE_KEY, logged);
   cacheClear("tickets:me");
   btn.classList.remove("primary");
@@ -2191,7 +2204,7 @@ function renderCompleted(actions, threadsById, emailsById, weekKey) {
   if (!el || !countEl) return;
   const dismissed = lsGetSet(DISMISSED_DONE_KEY);
   const logged = lsGetObj(LOGGED_DONE_KEY);
-  const visible = (actions || []).filter(a => !dismissed.has(a.id));
+  const visible = (actions || []).filter(a => !dismissed.has(stableActionKey(a)));
   countEl.textContent = String(visible.length);
   if (!visible.length) { renderEmpty(el, "Nothing untracked-but-done detected."); return; }
   el.innerHTML = "";
@@ -2207,7 +2220,7 @@ function renderCompleted(actions, threadsById, emailsById, weekKey) {
     const srcLink = a.source_permalink || slackThread?.latestPermalink || emailThread?.permalink || "";
     const teamHint = a.suggested_team_hint ? ` · suggested team: <strong>${escapeHtml(a.suggested_team_hint)}</strong>` : "";
     const coworkBadge = a.source_session_id ? `<span class="tag cowork" style="margin-right:6px">Cowork</span>` : "";
-    const wasLogged = logged[a.id];
+    const wasLogged = logged[stableActionKey(a)];
     card.innerHTML = `
       <div class="title"><span class="src-icon">✓</span>${coworkBadge}${escapeHtml(a.title)}</div>
       <div class="body">${escapeHtml(a.description || "")}</div>
@@ -2222,7 +2235,7 @@ function renderCompleted(actions, threadsById, emailsById, weekKey) {
       if (!card.querySelector(".log-btn").disabled) logAsDone(a, card.querySelector(".log-btn"));
     });
     card.querySelector(".dismiss-btn").addEventListener("click", () => {
-      const d = lsGetSet(DISMISSED_DONE_KEY); d.add(a.id); lsSetSet(DISMISSED_DONE_KEY, d);
+      const d = lsGetSet(DISMISSED_DONE_KEY); d.add(stableActionKey(a)); lsSetSet(DISMISSED_DONE_KEY, d);
       card.style.display = "none";
     });
     el.appendChild(card);
@@ -2235,7 +2248,7 @@ function renderLinear(actions, threadsById, weekKey) {
   if (!el || !countEl) return;
   const dismissed = lsGetSet(DISMISSED_KEY);
   const created = lsGetObj(CREATED_KEY);
-  const visible = (actions || []).filter(a => !dismissed.has(a.id));
+  const visible = (actions || []).filter(a => !dismissed.has(stableActionKey(a)));
   countEl.textContent = String(visible.length);
   if (!visible.length) { renderEmpty(el, "No suggested action items."); return; }
   el.innerHTML = "";
@@ -2247,7 +2260,7 @@ function renderLinear(actions, threadsById, weekKey) {
     const srcLink = a.source_permalink || sourceThread?.latestPermalink || "";
     const teamHint = a.suggested_team_hint ? ` · ${escapeHtml(a.suggested_team_hint)}` : "";
     const coworkBadge = a.source_session_id ? `<span class="tag cowork" style="margin-right:6px">Cowork</span>` : "";
-    const wasCreated = created[a.id];
+    const wasCreated = created[stableActionKey(a)];
     card.innerHTML = `
       <div class="title-row">${coworkBadge}${escapeHtml(a.title)}</div>
       <div class="actions">
@@ -2262,7 +2275,7 @@ function renderLinear(actions, threadsById, weekKey) {
       if (!card.querySelector(".create-btn").disabled) createInLinear(a, card.querySelector(".create-btn"));
     });
     card.querySelector(".dismiss-btn").addEventListener("click", () => {
-      const d = lsGetSet(DISMISSED_KEY); d.add(a.id); lsSetSet(DISMISSED_KEY, d);
+      const d = lsGetSet(DISMISSED_KEY); d.add(stableActionKey(a)); lsSetSet(DISMISSED_KEY, d);
       card.style.display = "none";
     });
     el.appendChild(card);
@@ -4126,6 +4139,17 @@ function setupOpenInAppsToggle() {
 
 // ============== Main ==============
 async function main() {
+  // One-time: pre-fix versions stored action dismissals/created state keyed
+  // by model-generated la-N/ca-N IDs, which collide across synth calls and
+  // silently hide all new suggestions. v2 uses content-hash keys via
+  // stableActionKey — the old entries don't map to anything, so clear them.
+  if (!localStorage.getItem("wd:key-migration-v2")) {
+    localStorage.removeItem(DISMISSED_KEY);
+    localStorage.removeItem(DISMISSED_DONE_KEY);
+    localStorage.removeItem(CREATED_KEY);
+    localStorage.removeItem(LOGGED_DONE_KEY);
+    localStorage.setItem("wd:key-migration-v2", "1");
+  }
   buildTabs();
   setupCollapsibles();
   setupOpenInAppsToggle();

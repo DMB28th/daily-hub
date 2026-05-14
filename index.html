@@ -673,6 +673,22 @@
   }
   .card:hover .ignore-btn { opacity: 1; }
   .ignore-btn:hover { color: #1d1d1f; border-color: #d2d2d7; background: #fff; }
+  /* Snooze dropdown — looks like a small button. Used on Needs Reply cards (absolute-positioned,
+     hover-reveal to match .ignore-btn) and Action item / Completed-untracked cards (in-flow
+     within .actions row, matching .btn.dismiss-btn sizing). */
+  .snooze-select {
+    font: inherit; font-size: 11px; color: #8e8e93;
+    background: #fff; border: 1px solid #ececec; border-radius: 6px;
+    padding: 4px 8px; cursor: pointer; appearance: none;
+    -webkit-appearance: none; -moz-appearance: none;
+  }
+  .snooze-select:hover { color: #1d1d1f; border-color: #d2d2d7; }
+  .card .snooze-select {
+    position: absolute; top: 8px; right: 8px;
+    opacity: 0; transition: opacity .12s;
+  }
+  .card:hover .snooze-select { opacity: 1; }
+  .linear-card .actions .snooze-select { font-size: 11px; padding: 3px 9px; }
   .empty { color: #8e8e93; font-style: italic; padding: 8px 2px; font-size: 13px; }
   .skeleton {
     border: 1px solid #ececec; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
@@ -960,6 +976,17 @@
   </form>
 </div>
 
+<!--
+  Embedded curated memory snapshot of ~/optio/memory.md.
+
+  Schema notes for `meeting_transcripts` entries:
+    - Required: `date` (YYYY-MM-DD), `topic` (string), `file` (filename of the source .md).
+    - Optional (Phase 2.3): `excerpt` (string, <= ~1200 chars) — a summary or decisions
+      block pulled from the transcript body. When present on transcripts dated within
+      the current week, it is forwarded to the synth model as PRIMARY evidence for
+      week_recap and completed_actions. Without an excerpt, the model only sees the
+      `topic` label, which is much weaker. Populate by hand or via the daily-backfill skill.
+-->
 <script type="application/json" id="optio-memory">
 {
   "last_updated": "2026-05-11T17:00:00-04:00",
@@ -1092,6 +1119,43 @@ function lsGetSet(key) { try { return new Set(JSON.parse(localStorage.getItem(ke
 function lsSetSet(key, s) { localStorage.setItem(key, JSON.stringify([...s])); }
 function lsGetObj(key) { try { return JSON.parse(localStorage.getItem(key) || "{}"); } catch { return {}; } }
 function lsSetObj(key, o) { localStorage.setItem(key, JSON.stringify(o)); }
+
+// Snooze helpers — used by IGNORED_KEY, DISMISSED_KEY, DISMISSED_DONE_KEY.
+// Shape: { [id]: { until_iso: "..." } }. An item is hidden while Date.now() < until_iso.
+// "Forever" maps to a sentinel ISO far in the future so the same code path covers both.
+function lsGetSnoozeMap(key) {
+  try {
+    const v = JSON.parse(localStorage.getItem(key) || "{}");
+    return (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
+  } catch { return {}; }
+}
+function lsSetSnoozeEntry(key, id, untilIso) {
+  const m = lsGetSnoozeMap(key);
+  m[id] = { until_iso: untilIso };
+  localStorage.setItem(key, JSON.stringify(m));
+}
+function isSnoozed(map, id) {
+  const e = map[id];
+  if (!e || !e.until_iso) return false;
+  const t = new Date(e.until_iso).getTime();
+  if (!isFinite(t)) return false;
+  return Date.now() < t;
+}
+function snoozeUntilIso(durationKey) {
+  const days = ({ "1d": 1, "3d": 3, "1w": 7 })[durationKey];
+  if (!days) return "9999-12-31T23:59:59Z"; // "Forever" sentinel
+  return new Date(Date.now() + days * 86_400_000).toISOString();
+}
+// Reusable snooze <select> markup. Caller wires the change handler.
+function snoozeSelectHtml(extraAttrs = "") {
+  return `<select class="snooze-select" ${extraAttrs}>
+    <option value="">Snooze ▾</option>
+    <option value="1d">1 day</option>
+    <option value="3d">3 days</option>
+    <option value="1w">1 week</option>
+    <option value="forever">Forever</option>
+  </select>`;
+}
 
 // ============== Cache layer ==============
 const CACHE_PREFIX = "wd:c:";
@@ -1773,8 +1837,49 @@ async function synthesize(threads, emails, pastMeetings, upcomingMeetings, cowor
     }))
   };
 
-  // Synth cache: identical input => identical output, no LLM call.
-  const synthCacheKey = `synth:${weekKey}:${djb2(JSON.stringify(payload))}`;
+  // Phase 2.3: surface this week's transcript excerpts (if any) as PRIMARY evidence.
+  // `synthesize` only receives `weekKey` (not offset), so map it back: this=0, last=-1, next=+1.
+  const _offsetForKey = ({ this: 0, last: -1, next: 1 })[weekKey] ?? 0;
+  const _range = weekRange(_offsetForKey);
+  const _startKey = _range.start.toISOString().slice(0, 10);
+  const _endKey = _range.end.toISOString().slice(0, 10);
+  const weekExcerpts = (memory.meeting_transcripts || [])
+    .filter(t => t && typeof t.excerpt === "string" && t.excerpt.trim() && t.date >= _startKey && t.date <= _endKey)
+    .slice(0, 6)
+    .map(t => ({ date: t.date, topic: t.topic, excerpt: t.excerpt.slice(0, 1000) }));
+  if (weekExcerpts.length) payload.meeting_excerpts = weekExcerpts;
+
+  // Phase 2.2: structural cache signature instead of a raw-bytes hash.
+  //
+  // What this captures (cache MISS on change):
+  //   - week key, item counts per section
+  //   - per-thread (id, latest_from_is_me) — "who replied last where"
+  //   - per-email (id, latest_from_is_me) — same idea for email
+  //   - per-workstream (slug, last_touched) from memory.md — bumping last_touched busts cache
+  //   - meeting_excerpts (count + concatenated dates) — adding/removing excerpts busts cache
+  //
+  // What it deliberately IGNORES (cache HIT despite change):
+  //   - snippet/text edits within a thread or email (trivial wording changes)
+  //   - message-count drift inside an existing thread (new replies that don't flip latest_from_is_me)
+  //   - notes-snippet content on past meetings
+  // The trade-off: trades fine-grained re-synth for cheaper reloads. If a thread genuinely
+  // changes state (someone new replies), latest_from_is_me flips and we re-synth.
+  const meetingExcerptsSig = weekExcerpts.length
+    ? `${weekExcerpts.length}:${weekExcerpts.map(e => e.date).join(",")}`
+    : "0";
+  const sig = JSON.stringify({
+    week: weekKey,
+    threadCount: payload.threads.length,
+    emailCount: payload.emails.length,
+    pastMeetingCount: payload.past_meetings.length,
+    upcomingMeetingCount: payload.upcoming_meetings.length,
+    coworkCount: payload.cowork_sessions.length,
+    threadSig: payload.threads.map(t => `${t.id}:${t.latest_from_is_me ? 1 : 0}`).join("|"),
+    emailSig: payload.emails.map(e => `${e.id}:${e.latest_from_is_me ? 1 : 0}`).join("|"),
+    workstreamSig: (memory.active_workstreams || []).map(w => `${w.slug || w.name}:${w.last_touched || ""}`).join("|"),
+    meetingExcerptsSig
+  });
+  const synthCacheKey = `synth:${weekKey}:${djb2(sig)}`;
   const cachedSynth = cacheGet(synthCacheKey, Infinity);
   if (cachedSynth) return cachedSynth.data;
   const prompt = [
@@ -1786,6 +1891,7 @@ async function synthesize(threads, emails, pastMeetings, upcomingMeetings, cowor
     `  Recent decisions: ${memorySummary.decisions || "(none)"}`,
     `  Meeting transcripts this week (date: topic — bodies NOT loaded): ${memorySummary.meeting_topics || "(none)"}`,
     `Use meeting topics as supporting evidence in completed_actions (meetings that actually happened). Don't propose linear_actions just because a meeting entry exists.`,
+    `When \`meeting_excerpts\` is present in the payload, treat it as PRIMARY evidence for \`week_recap.worked_on\` and \`completed_actions\`. Direct quotes from excerpts are encouraged when they ground a claim. Excerpts beat topic labels for accuracy.`,
     "",
     "PHRASE LIBRARY — use these as anchors when detecting asks, commitments, and completions. They are signals, not exhaustive — judgment still applies, and context matters.",
     "",
@@ -2066,7 +2172,7 @@ function renderThreadCard(t, meta, urgent) {
   const tags = sourceTags(t).map(x => `<span class="tag ${x.cls}">${x.label}</span>`).join("");
   const reason = urgent && meta?.reply_reason ? `<div class="reason">↳ ${escapeHtml(meta.reply_reason)}</div>` : "";
   const summary = escapeHtml(meta?.summary || (t.latestText || "").replace(/\s+/g, " ").slice(0, 220));
-  const ignoreBtn = urgent ? `<button class="ignore-btn" data-ignore-key="${escapeHtml(slackIgnoreKey(t))}">Ignore</button>` : "";
+  const ignoreBtn = urgent ? snoozeSelectHtml(`data-snooze-key="${escapeHtml(slackIgnoreKey(t))}"`) : "";
   const age = urgent ? urgentAgeBadge(t.latestTs) : { html: "", isOld: false };
   const cardCls = `card ${urgent ? "urgent" : ""}${age.isOld ? " urgent-old" : ""}`.trim();
   return `<a class="${cardCls}" href="${t.latestPermalink || "#"}" target="_blank" rel="noopener" data-channel="${t.channelId}">
@@ -2084,7 +2190,7 @@ function renderThreadCard(t, meta, urgent) {
 function renderEmailCard(e, meta, urgent) {
   const reason = urgent && meta?.reply_reason ? `<div class="reason">↳ ${escapeHtml(meta.reply_reason)}</div>` : "";
   const summary = escapeHtml(meta?.summary || (e.latestSnippet || "").slice(0, 220));
-  const ignoreBtn = urgent ? `<button class="ignore-btn" data-ignore-key="${escapeHtml(emailIgnoreKey(e))}">Ignore</button>` : "";
+  const ignoreBtn = urgent ? snoozeSelectHtml(`data-snooze-key="${escapeHtml(emailIgnoreKey(e))}"`) : "";
   const subjLine = `<span class="who"><span class="src-icon" title="Email">✉️</span>${escapeHtml(emailDisplayWho(e))}</span>`;
   const subj = `<div style="color:#6e6e73;font-size:12px;margin-top:1px"><em>${escapeHtml(e.subject)}</em></div>`;
   const age = urgent ? urgentAgeBadge(e.latestTs) : { html: "", isOld: false };
@@ -2103,13 +2209,19 @@ function renderEmailCard(e, meta, urgent) {
 }
 
 function attachIgnoreHandlers(containerEl, refreshFn) {
-  containerEl.querySelectorAll(".ignore-btn").forEach(btn => {
-    btn.addEventListener("click", (ev) => {
+  containerEl.querySelectorAll(".snooze-select[data-snooze-key]").forEach(sel => {
+    // Block the parent <a> from navigating when interacting with the select.
+    sel.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); });
+    sel.addEventListener("mousedown", (ev) => ev.stopPropagation());
+    sel.addEventListener("change", (ev) => {
       ev.preventDefault(); ev.stopPropagation();
-      const ignored = lsGetSet(IGNORED_KEY);
-      ignored.add(btn.dataset.ignoreKey);
-      lsSetSet(IGNORED_KEY, ignored);
-      refreshFn();
+      const dur = sel.value;
+      if (!dur) return;
+      lsSetSnoozeEntry(IGNORED_KEY, sel.dataset.snoozeKey, snoozeUntilIso(dur));
+      const card = sel.closest(".card");
+      if (card) card.style.display = "none";
+      // Reset so re-opening shows the placeholder again if the card ever reappears.
+      sel.value = "";
     });
   });
 }
@@ -2118,12 +2230,12 @@ function renderUrgent(threads, emails, threadMeta, emailMeta, weekKey) {
   const el = document.getElementById(`${weekKey}-urgent`);
   const countEl = document.getElementById(`${weekKey}-urgent-count`);
   if (!el || !countEl) return;
-  const ignored = lsGetSet(IGNORED_KEY);
+  const ignored = lsGetSnoozeMap(IGNORED_KEY);
   const urgentThreads = threads
-    .filter(t => threadMeta[t.channelId]?.needs_reply && !ignored.has(slackIgnoreKey(t)))
+    .filter(t => threadMeta[t.channelId]?.needs_reply && !isSnoozed(ignored, slackIgnoreKey(t)))
     .map(t => ({ kind: "slack", item: t, ts: t.latestTs }));
   const urgentEmails = emails
-    .filter(e => emailMeta[e.threadId]?.needs_reply && !ignored.has(emailIgnoreKey(e)))
+    .filter(e => emailMeta[e.threadId]?.needs_reply && !isSnoozed(ignored, emailIgnoreKey(e)))
     .map(e => ({ kind: "email", item: e, ts: e.latestTs }));
   const all = [...urgentThreads, ...urgentEmails].sort((a, b) => b.ts - a.ts);
   countEl.textContent = String(all.length);
@@ -2202,9 +2314,9 @@ function renderCompleted(actions, threadsById, emailsById, weekKey) {
   const el = document.getElementById(`${weekKey}-done`);
   const countEl = document.getElementById(`${weekKey}-done-count`);
   if (!el || !countEl) return;
-  const dismissed = lsGetSet(DISMISSED_DONE_KEY);
+  const dismissed = lsGetSnoozeMap(DISMISSED_DONE_KEY);
   const logged = lsGetObj(LOGGED_DONE_KEY);
-  const visible = (actions || []).filter(a => !dismissed.has(stableActionKey(a)));
+  const visible = (actions || []).filter(a => !isSnoozed(dismissed, stableActionKey(a)));
   countEl.textContent = String(visible.length);
   if (!visible.length) { renderEmpty(el, "Nothing untracked-but-done detected."); return; }
   el.innerHTML = "";
@@ -2227,15 +2339,18 @@ function renderCompleted(actions, threadsById, emailsById, weekKey) {
       <div class="src">Evidence: ${srcLink ? `<a href="${srcLink}" target="_blank" rel="noopener">${escapeHtml(srcLabel)}</a>` : escapeHtml(srcLabel)}${teamHint}</div>
       <div class="actions">
         <button class="btn primary log-btn">${wasLogged ? `<span class="check">✓</span> ${escapeHtml(wasLogged.id)}` : "Create + Complete"}</button>
-        <button class="btn dismiss-btn">Dismiss</button>
+        ${snoozeSelectHtml()}
       </div>`;
     if (wasLogged) card.querySelector(".log-btn").disabled = true;
     card.querySelector(".log-btn").addEventListener("click", (e) => {
       e.preventDefault();
       if (!card.querySelector(".log-btn").disabled) logAsDone(a, card.querySelector(".log-btn"));
     });
-    card.querySelector(".dismiss-btn").addEventListener("click", () => {
-      const d = lsGetSet(DISMISSED_DONE_KEY); d.add(stableActionKey(a)); lsSetSet(DISMISSED_DONE_KEY, d);
+    const sel = card.querySelector(".snooze-select");
+    sel.addEventListener("change", () => {
+      const dur = sel.value;
+      if (!dur) return;
+      lsSetSnoozeEntry(DISMISSED_DONE_KEY, stableActionKey(a), snoozeUntilIso(dur));
       card.style.display = "none";
     });
     el.appendChild(card);
@@ -2246,9 +2361,9 @@ function renderLinear(actions, threadsById, weekKey) {
   const el = document.getElementById(`${weekKey}-linear`);
   const countEl = document.getElementById(`${weekKey}-linear-count`);
   if (!el || !countEl) return;
-  const dismissed = lsGetSet(DISMISSED_KEY);
+  const dismissed = lsGetSnoozeMap(DISMISSED_KEY);
   const created = lsGetObj(CREATED_KEY);
-  const visible = (actions || []).filter(a => !dismissed.has(stableActionKey(a)));
+  const visible = (actions || []).filter(a => !isSnoozed(dismissed, stableActionKey(a)));
   countEl.textContent = String(visible.length);
   if (!visible.length) { renderEmpty(el, "No suggested action items."); return; }
   el.innerHTML = "";
@@ -2265,7 +2380,7 @@ function renderLinear(actions, threadsById, weekKey) {
       <div class="title-row">${coworkBadge}${escapeHtml(a.title)}</div>
       <div class="actions">
         <button class="btn primary create-btn">${wasCreated ? `<span class="check">✓</span> ${escapeHtml(wasCreated.id)}` : "Create"}</button>
-        <button class="btn dismiss-btn">Dismiss</button>
+        ${snoozeSelectHtml()}
       </div>
       <div class="body">${escapeHtml(a.description || "")}</div>
       <div class="src">${srcLink ? `<a href="${srcLink}" target="_blank" rel="noopener">${escapeHtml(srcLabel)}</a>` : escapeHtml(srcLabel)}${teamHint}</div>`;
@@ -2274,8 +2389,11 @@ function renderLinear(actions, threadsById, weekKey) {
       e.preventDefault();
       if (!card.querySelector(".create-btn").disabled) createInLinear(a, card.querySelector(".create-btn"));
     });
-    card.querySelector(".dismiss-btn").addEventListener("click", () => {
-      const d = lsGetSet(DISMISSED_KEY); d.add(stableActionKey(a)); lsSetSet(DISMISSED_KEY, d);
+    const sel = card.querySelector(".snooze-select");
+    sel.addEventListener("change", () => {
+      const dur = sel.value;
+      if (!dur) return;
+      lsSetSnoozeEntry(DISMISSED_KEY, stableActionKey(a), snoozeUntilIso(dur));
       card.style.display = "none";
     });
     el.appendChild(card);
@@ -4149,6 +4267,30 @@ async function main() {
     localStorage.removeItem(CREATED_KEY);
     localStorage.removeItem(LOGGED_DONE_KEY);
     localStorage.setItem("wd:key-migration-v2", "1");
+  }
+  // Phase 2.1: Convert IGNORED_KEY / DISMISSED_KEY / DISMISSED_DONE_KEY from a flat
+  // array-of-IDs into an object keyed by ID with { until_iso }. Existing entries are
+  // preserved as "Forever" snoozes so behavior matches what the user had before.
+  if (!localStorage.getItem("wd:snooze-migration-v1")) {
+    for (const key of [IGNORED_KEY, DISMISSED_KEY, DISMISSED_DONE_KEY]) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const migrated = {};
+          for (const id of parsed) {
+            if (id != null) migrated[String(id)] = { until_iso: "9999-12-31T23:59:59Z" };
+          }
+          localStorage.setItem(key, JSON.stringify(migrated));
+        }
+        // Already an object — leave alone.
+      } catch {
+        // Bad JSON; safest is to clear it so the new shape can take over.
+        localStorage.removeItem(key);
+      }
+    }
+    localStorage.setItem("wd:snooze-migration-v1", "1");
   }
   buildTabs();
   setupCollapsibles();

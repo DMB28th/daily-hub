@@ -163,9 +163,9 @@ Three changes with light state migration or prompt-engineering.
 
 ---
 
-## Phase 3 — Higher complexity, longer-running
+## Phase 3 — Deferred (not currently scoped)
 
-Two changes with new MCP integrations or async state machines.
+The two items below were considered but deferred. The function-calling chat is real work for marginal day-to-day benefit given how the Hub is actually used. Cross-device sync only matters if the Hub is opened on multiple devices, which isn't a current need. Kept here for reference if priorities shift.
 
 ### 3.1 Function-calling chat panel
 

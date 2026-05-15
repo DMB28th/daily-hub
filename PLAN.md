@@ -163,9 +163,68 @@ Three changes with light state migration or prompt-engineering.
 
 ---
 
+## Phase 3.1-lite — Chat reads from memory corpus
+
+**Status:** Active. Replaces the original Phase 3.1 (function-calling). Solves the same user need — chat can answer specific questions grounded in the user's actual work memory — without a multi-turn LLM tool-use loop.
+
+**Why:** Today the chat is a thin wrapper around a slim pre-bundled snapshot (workstream summaries, recent decisions, 30 IDB events). Ask "what did we decide about Investec recently?" and it can only guess from the workstream slug "investec-replication" — it has no access to `refs/investec-replication.md` or the daily briefs that mentioned it.
+
+**Approach — static embed, not function-calling:**
+
+1. **New embedded JSON block.** Add `<script type="application/json" id="memory-corpus">` to `index.html`, structurally parallel to the existing `optio-memory` block. Contents: a flat map `{ "memory.md": "...", "refs/bi-tool-eval.md": "...", "daily/2026-05-12.md": "...", ... }`. Starts as `{}`; populated by the daily-backfill skill.
+
+2. **Loader:** `getMemoryCorpus()` near `getOptioMemory()` (~line 3525). Same defensive parse pattern.
+
+3. **Keyword-match selector** `selectRelevantCorpusFiles(question, corpus)`:
+   - Tokenize the question: lowercase, drop stopwords (a/the/is/etc.), drop short tokens (<3 chars), keep distinct lemmas.
+   - For each file in corpus: `score = sum over tokens of (5 * count_in_filename + count_in_content)`.
+   - Sort by score descending. Always include `memory.md` regardless of score (it's the index).
+   - Take top files until cumulative content size hits 40KB or 6 files (excluding `memory.md`).
+   - Return `[{ filename, content }]`.
+
+4. **Extend `buildChatContext`** (~line 3766): add two fields:
+   - `memory_corpus_files`: full list of corpus filenames with byte sizes (model sees "I have refs/X.md (3KB) — should I look at it?" even when keyword-match didn't include it).
+   - `memory_corpus_relevant`: the array from `selectRelevantCorpusFiles(question, corpus)`. Note `buildChatContext` doesn't currently know the question — refactor to take `question` as a parameter and call it from `chatSend`.
+
+5. **Update `chatSend` prompt** (~line 3914):
+   - New section: "MEMORY CORPUS — your full work memory, point-in-time as of last daily backfill. The following files are available; the relevant ones (matched against your question) are inlined below."
+   - List `memory_corpus_files` (filename + size).
+   - Inline `memory_corpus_relevant` (full content of selected files, with filename headers).
+   - Instruction: "Cite specific files when you reference them (e.g., 'per refs/bi-tool-eval.md, ...'). Do not invent facts not in the corpus. If the user asks about something that isn't in the corpus or in the activity context, say so."
+
+6. **Skill update — daily-backfill recompiles corpus.** Extend `daily-backfill-SKILL.md`:
+   - Add new placeholder `<<ARTIFACT_PATH>>` (absolute path to user's `index.html`).
+   - Add a final "RECOMPILE MEMORY CORPUS" section that runs after the existing WRITE block:
+     - Glob all `.md` files in the memory folder (memory.md, refs/*.md, people/*.md, daily/*.md from last 14d, slack/*.md from last 14d, transcripts/*.md from last 30d).
+     - Build the `{ filename: content }` map. Truncate any individual file >20KB to its first 20KB with `[truncated]` marker.
+     - Read `<<ARTIFACT_PATH>>`.
+     - Replace the contents of the `<script type="application/json" id="memory-corpus">...</script>` block with `JSON.stringify(corpus, null, 2)`.
+     - Write the artifact back.
+   - If `<<ARTIFACT_PATH>>` is unset, skip this step silently.
+
+7. **README update — Step 9 sub-prompt.** Ask the user for the artifact path when wiring up the scheduled task. Substitute into the skill alongside the other three placeholders.
+
+**Risks:**
+
+- **Payload size.** A 40KB cap on selected files + `memory.md` full text + existing chat context = roughly 50–70KB total. Haiku handles this easily. Worth adding a `console.log` of payload size in `chatSend` for the first few uses so we can observe.
+- **Skill writes to artifact file.** That's a destructive change. The skill must read-modify-write atomically (read full file, swap just the corpus block via regex/string replace, write back). Be explicit: only the corpus block's INNER TEXT should change; the surrounding HTML must be preserved exactly.
+- **Corpus refresh requires accurate artifact path.** If the user moves the artifact, the skill silently fails to update. Mitigation: skill logs the artifact-path used in its output summary.
+- **Memory-corpus contains everything from `slack/`, `daily/`.** That means private content. Same trust boundary as the existing repo (private GitHub) — no new exposure.
+
+**Acceptance:**
+
+1. Open Hub. Open chat. With corpus populated:
+   - Ask "what did we decide about Investec recently?" Answer cites `refs/investec-replication.md` and recent `daily/*.md` with concrete facts (Fivetran abandoned, 3-month sub-processor clause, Wlodek re-scoping).
+   - Ask "who's on the BI tool eval and what's the timeline?" Answer cites `refs/bi-tool-eval.md` with vendor names and dates.
+   - Ask "what's coming up with Knut this week?" Answer combines `memory.md` workstream + upcoming calendar (existing context) + any `refs/*.md` or `daily/*.md` mentions.
+2. With empty corpus (fresh install before daily-backfill has run): chat works as before, no errors.
+3. Daily-backfill run output mentions "recompiled memory corpus: N files, MKB" in summary line.
+
+---
+
 ## Phase 3 — Deferred (not currently scoped)
 
-The two items below were considered but deferred. The function-calling chat is real work for marginal day-to-day benefit given how the Hub is actually used. Cross-device sync only matters if the Hub is opened on multiple devices, which isn't a current need. Kept here for reference if priorities shift.
+The two items below were considered but deferred. The function-calling chat is real work for marginal day-to-day benefit (Phase 3.1-lite above gets us most of the value). Cross-device sync only matters if the Hub is opened on multiple devices, which isn't a current need. Kept here for reference if priorities shift.
 
 ### 3.1 Function-calling chat panel
 

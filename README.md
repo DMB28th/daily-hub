@@ -1,158 +1,154 @@
-# Daily Hub
+# Daily Hub — Self-Setup
 
 A self-contained Cowork artifact that pulls fresh data from Slack, Gmail, Google Calendar, Google Drive, Linear, and your Cowork sessions on every load, synthesizes it with Haiku, and renders four views — Timeline, Last week, This week, Next week — plus a floating chat panel that can create Linear tickets and schedule meetings.
 
 It doesn't try to replace your primary tools. It sits on top of them and gives you one place to start the day.
 
-For architecture detail, see `daily-hub.md` in this repo.
+## Quickstart
 
-## What it shows
+Open a Cowork session and paste this:
 
-- **Timeline** — horizontal time axis with a lane per source. Click any event for detail. Range selector (this week / last week / 14d / 30d / 90d). One-click Backfill loads the last 8 weeks.
-- **This week** (default) — active workstreams + recent decisions pulled from your memory file, ranked "Next: do this" recommendations, a Needs reply queue (Slack + email combined), your open Linear tickets, past + upcoming meetings (with notes/agenda summaries), AI-suggested action items to file, and a "Completed (untracked)" section for work you shipped but never logged.
-- **Last week** — retrospective. Lazy-loaded.
-- **Next week** — upcoming meeting agendas only. Lazy-loaded.
-- **Chat panel** (bottom-right floating button) — natural-language questions over your recent activity, with three confirmable actions: `create_linear_ticket`, `complete_linear_ticket`, `schedule_meeting`.
+> Walk me through setting up the Daily Hub for myself using the README at https://github.com/DMB28th/daily-hub. Follow the "Setup playbook" section step by step. Pause after each step for me to confirm or answer questions. Don't batch.
+
+Claude will follow the playbook below. You answer questions as they come, paste paths when asked, and at the end you'll have a working Hub.
+
+If you'd rather do it by hand, the playbook reads as a normal setup guide. Skip the **For Claude** notes — those are just instructions for the assistant.
+
+---
+
+## What you're getting
+
+- **Timeline** — horizontal time axis with a lane per source (Slack, email, meetings, Linear). Click events for detail. Range selector: this week / last week / 14d / 30d / 90d. A Backfill button loads the last 8 weeks of data into IndexedDB.
+- **This week** (default tab) — active workstreams + recent decisions from your hand-curated memory, ranked "Next: do this" recommendations, a Needs Reply queue combining Slack and email, your open Linear tickets, past + upcoming meetings with notes/agenda summaries, AI-suggested action items to file, a "Completed (untracked)" section for work you shipped but never logged, and a Stakeholder Pulse showing days-since-last-mention for your exec stakeholders.
+- **Last week** — retrospective view. Lazy-loaded on click.
+- **Next week** — upcoming meeting agendas only. Lazy-loaded on click.
+- **Chat panel** (bottom-right floating button) — natural-language questions over your recent activity. Three confirmable actions: `create_linear_ticket`, `complete_linear_ticket`, `schedule_meeting`.
 
 Every section is collapsible; state persists per-section in localStorage. Past weeks cache forever, the current week refreshes every 6h. Two refresh buttons per tab — `↻ AI` re-runs synthesis against cached data (fast), `Refresh all` clears source caches and re-fetches.
 
-## Prerequisites
+---
 
-- **Cowork.** The Hub depends on `window.cowork.callMcpTool()` and `window.cowork.askClaude()`. It will not run in a plain browser — opening `index.html` directly shows `Cannot read properties of undefined (reading 'callMcpTool')` in the console. Expected.
-- **These MCP servers connected to your Cowork account**: Slack, Gmail, Google Calendar, Google Drive, Linear, plus `session_info` (Cowork's built-in session history).
-- A modern Chrome- or Safari-based browser (the Cowork artifact view).
+## Setup playbook
 
-## Setup for your account
+The playbook is eight steps. Each step has a **What** (the goal), a **You** section (what to do or answer), and a **For Claude** note (what the assistant should do in a Cowork session). Run them in order.
 
-Clone this repo somewhere on your machine:
+### Step 1 — Verify prerequisites
 
-```bash
-gh repo clone DMB28th/daily-hub
-cd daily-hub
-```
+**What:** The Hub depends on Cowork plus six MCP servers connected to your account: Slack, Gmail, Google Calendar, Google Drive, Linear, and `session_info` (Cowork's built-in session history). If any is missing, the corresponding section of the Hub stays empty.
 
-Then open `index.html` and change four things.
+**You:** Open Cowork → settings → MCP servers. Confirm those six are installed and connected. If not, install them.
 
-### 1. Your identity (top of the `<script>` block, around line 993)
+**For Claude:** Run a no-op probe against each server — e.g. `mcp__*__list_teams` (Linear), `mcp__*__list_events` with a tiny window (Calendar), `mcp__*__search_threads` with a recent query (Gmail), etc. Report which probes succeed and which fail. If any fail, stop and tell the user which servers are missing or unauthorized. Do not proceed to Step 2 until all six respond.
 
-```js
-const ME = "U0AQU1S4GF9";                                  // ← your Slack member ID
-const ME_NAME = "Dan Ben-Atar";                            // ← your display name
-const ME_EMAIL = "daniel.ben-atar@optioincentives.com";    // ← your work email
-```
+### Step 2 — Get the code
 
-Find your Slack member ID via Slack → click your avatar → **Profile** → **⋯** → **Copy member ID**. It starts with `U`.
+**What:** Clone the private repo locally. The maintainer (Dan, GitHub `DMB28th`) must have invited your GitHub username as a collaborator first; ask if you don't see access.
 
-These constants are used to tag messages as "from me" (so Needs reply correctly excludes threads you sent last) and to flag meetings you scheduled.
+**You:** Run `gh repo clone DMB28th/daily-hub ~/daily-hub` (or wherever you want it). Tell the assistant the local path.
 
-### 2. Your meeting transcripts folder (around line 3646)
+**For Claude:** Confirm the path exists and contains `index.html`, `README.md`, `daily-hub.md`, `PLAN.md`. If the clone fails with a permissions error, tell the user to request access from `DMB28th`. Note the path — you'll edit `index.html` in Step 4.
 
-```js
-const MEETINGS_BASE = "file:///Users/danielben-atar/Claude/Claude%20Memory/optio/Meeting%20Transcripts/";
-```
+### Step 3 — Gather personal constants
 
-Point this at wherever you keep meeting transcripts on disk. Any folder of dated `.md` files works — Plaud, Granola, Fathom, Otter exports, or manual paste-ins from Gemini auto-notes. The recommended filename pattern is `YYYY-MM-DD_short-topic_<hash>.md`; the Hub parses the leading date and uses the topic portion as the row label.
+**What:** Four pieces of personal info that get baked into `index.html`.
 
-Note the URL-encoding: spaces become `%20`.
+**You:** Have these ready (or look them up when the assistant asks):
+1. **Your Slack member ID.** Open Slack → click your avatar → **Profile** → **⋯** menu → **Copy member ID**. Starts with `U`.
+2. **Your display name** (whatever you want shown in synth output — first + last is fine).
+3. **Your work email.**
+4. **Path to your meeting transcripts folder** (optional). Any folder of dated `.md` files works — Plaud, Granola, Fathom, Otter exports, manual paste-ins from Gemini notes, etc. If you don't have one, the Hub still works; clicking transcript links just won't open anything. Recommended filename pattern: `YYYY-MM-DD_short-topic_<hash>.md`.
 
-### 3. Your memory folder path (around line 3559)
+**For Claude:** Ask for each of the four values in turn. Don't accept fake placeholder values like `<your-id>` — politely re-ask. For the transcripts folder, if the user says "none" or "skip," remember that and skip the corresponding edit in Step 4. Also ask whether the user wants to maintain a `memory.md` folder (Step 6) — if yes, ask for that path now too; if no, you'll insert a default.
 
-```js
-const refLink = w.ref ? `<a class="ws-ref" href="file://${escapeHtml("/Users/danielben-atar/Claude/Claude Memory/optio/" + w.ref)}" title="...
-```
+### Step 4 — Edit `index.html` constants
 
-Change the path prefix to wherever you keep your memory folder. The Hub renders one `↗` link per workstream that resolves to `file://<your-path>/refs/<slug>.md`.
+**What:** Replace the maintainer's constants with the user's.
 
-If you don't maintain a memory folder, leave this alone — clicking the link just won't open anything. The Hub still works.
+**For Claude:** Open `<path>/index.html`. Make these edits (line numbers approximate — search the strings to find them):
+1. `const ME = "U0AQU1S4GF9";` → user's Slack ID.
+2. `const ME_NAME = "Dan Ben-Atar";` → user's name.
+3. `const ME_EMAIL = "daniel.ben-atar@optioincentives.com";` → user's email.
+4. `const MEETINGS_BASE = "file:///Users/danielben-atar/Claude/Claude%20Memory/optio/Meeting%20Transcripts/";` → user's transcripts path, URL-encoded (spaces → `%20`). If user said no transcripts folder in Step 3, leave the constant but flag it for them; the Hub will still render the section, transcript links just won't open.
+5. The hardcoded refs path inside `renderMemoryWorkstreams` — find the string `/Users/danielben-atar/Claude/Claude Memory/optio/` (used to build `file://` links per workstream). Replace with the user's memory folder path, or skip if they don't have one.
 
-### 4. The embedded memory JSON (lines 941–991)
+Verify by greping for `danielben-atar`, `optioincentives`, `Dan Ben-Atar`, `U0AQU1S4GF9` — those should now return zero hits.
 
-This is the only chunk of personal data baked into the file: a snapshot of the maintainer's `memory.md`. Replace the contents with your own. The schema is:
+**You:** Answer the questions and confirm the edits look right when Claude shows the diffs.
 
-```json
-{
-  "last_updated": "2026-05-12T08:00:00-04:00",
-  "right_now": [
-    "3–5 top-of-mind items, each one line."
-  ],
-  "active_workstreams": [
-    {
-      "name": "Display name",
-      "slug": "lowercase-slug",
-      "status": "One-sentence current state",
-      "next_action": "Concrete next thing to do",
-      "ref": "refs/lowercase-slug.md",
-      "last_touched": "2026-05-11"
-    }
-  ],
-  "recent_decisions": [
-    {
-      "date": "2026-05-11",
-      "workstream": "lowercase-slug",
-      "text": "What was decided.",
-      "superseded": "2026-05-12"
-    }
-  ],
-  "exec_stakeholders": [
-    {"name": "Full Name", "aliases": ["Full Name", "Nickname"]}
-  ],
-  "meeting_transcripts": [
-    {
-      "date": "2026-05-11",
-      "topic": "Short topic label",
-      "file": "2026-05-11_full-filename.md"
-    }
-  ]
-}
-```
+### Step 5 — Customize the embedded memory JSON
 
-The `aliases` array on stakeholders is what powers the Stakeholder Pulse fuzzy-match against Slack/Gmail/Calendar event text — include common nicknames and formal-name variants.
+**What:** Replace the maintainer's `<script id="optio-memory">` block with your own data. This is the only chunk of Optio-specific content in the artifact; everything else is generic.
 
-You can hand-edit this JSON whenever your priorities shift. There's no rebuild step — save the file, reload the artifact.
+**For Claude:** Find `<script type="application/json" id="optio-memory">` in `index.html`. Show the user the current schema (workstreams, recent decisions, exec stakeholders, meeting transcripts). Then ask:
+- "What are your 3–5 most-active workstreams right now?" For each, get: name, short slug (lowercase-hyphen), one-sentence status, the next concrete action, optional ref-file slug.
+- "Who are your exec stakeholders?" 3–5 names, with common aliases/nicknames they appear under in Slack/email.
+- Decisions and meeting transcripts: skip for now — the user can hand-add as they accumulate.
 
-## MCP server bindings — read this if tool calls start failing
+Replace the JSON contents. Validate that it parses (try `JSON.parse(...)` in your head or via a quick node check). The structure is documented in `daily-hub.md` if you need the full schema.
 
-The `<script id="cowork-artifact-meta">` block at the very top of `index.html` lists the MCP tool names this artifact uses. Each tool name has the shape `mcp__<server-uuid>__<tool-name>`. Those UUIDs are tied to a specific Cowork installation.
+**You:** Answer the questions. Be honest about what's actually on your plate, not aspirational.
 
-When you install the artifact in your Cowork, the harness *should* rebind the server UUIDs to your installed servers based on the parallel `mcpServerNames` array (Slack / Google Calendar / Google Drive / Gmail / Linear / session_info). If that rebind happens cleanly, you don't need to touch anything.
+### Step 6 — (Optional) Wire up a memory folder
 
-If something doesn't work — e.g. Slack data is empty, the Linear team picker is blank — open browser dev tools and look for `safeCall` errors. If you see "tool not found", you'll need to manually swap the UUIDs in both the `cowork-artifact-meta` JSON *and* the JS constants further down (`SLACK_SEARCH`, `CAL_LIST`, etc., around line 996) to match your servers' UUIDs. Find your UUIDs in Cowork → settings → MCP servers.
+**What:** The Hub renders `↗` links per workstream pointing at `file://<memory-folder>/refs/<slug>.md`. If you maintain a memory folder, those links open the deep-dive doc on each workstream. If you don't, the links 404 silently.
 
-## Installing in Cowork
+**You:** If you want one, decide on a path (e.g. `~/notes/work-memory/`). Inside, create `refs/<slug>.md` per workstream you listed in Step 5.
 
-1. Open Cowork, start a session, and ask: "install this Daily Hub artifact" — paste the contents of `index.html`, or upload the file directly through Cowork's artifact UI.
-2. Pin the artifact so it's one click away.
-3. Open it. The first load takes longer (Haiku synthesis is ~5–10 seconds with no cache); subsequent loads pull from cache and finish in under a second.
+**For Claude:** If user wants a memory folder, create the path and a stub `refs/<slug>.md` for each workstream from Step 5. Each stub should have a single H1 header (`# <Workstream Name>`) and a placeholder section. Tell the user to fill them in over time.
 
-## Keeping it current
+If the user skips this, fine. The Hub doesn't depend on it.
 
-- **Memory JSON.** When your priorities change, hand-edit the `<script id="optio-memory">` block. Or, if you have Claude in a Cowork session with access to your memory folder, ask: "update the embedded memory in the Daily Hub from my current memory.md."
-- **Transcripts list.** New transcript files in your folder don't appear automatically — the list is embedded. Ask Claude: "re-list my meeting transcripts folder and update the embedded list in the Daily Hub." Or hand-edit the `meeting_transcripts` array.
-- **Live data.** Slack, Gmail, Calendar, Drive, Linear, Cowork sessions all refresh from MCP every 6 hours (or on-demand via the Refresh button). No maintenance.
+### Step 7 — Install the artifact in Cowork
+
+**What:** Upload `index.html` as a pinned Cowork artifact.
+
+**You:** In Cowork, create a new artifact. Either paste the contents of your edited `index.html`, or upload the file directly through whatever artifact UI Cowork provides. Pin it so it's one click away.
+
+**For Claude:** Confirm with the user that they've uploaded and pinned it. Ask them to open it.
+
+### Step 8 — First load + smoke test
+
+**What:** Open the artifact and confirm data populates. First load takes 5–10 seconds (Haiku synthesis). Subsequent loads are sub-second.
+
+**You:** Open the Hub. Land on This week. Look for:
+- Linear team picker (top right) shows a real team name (not "Loading..." or "(no teams)").
+- Active workstreams section shows what you entered in Step 5.
+- Past meetings / Upcoming meetings sections have entries from your calendar.
+- Conversations / Email threads sections have recent activity.
+- After ~10s, the Week So Far synthesis text fills in.
+
+**For Claude:** Ask the user what they see. If anything's stuck on "Loading..." indefinitely or empty when it shouldn't be, walk through the **MCP rebind** caveat below — the hardcoded MCP server UUIDs may not match the user's installations.
+
+---
 
 ## Caveats worth knowing
 
-- **Browser-local storage only.** Data persists in localStorage and IndexedDB on whatever device opens the Hub. Switching laptops means re-running Backfill on the new one. Cross-device sync was scoped out to keep the architecture self-contained.
-- **Haiku-only synthesis.** The `askClaude` Cowork binding uses Haiku. No model parameter. Fast and cheap, but occasionally less reliable on edge cases than Sonnet would be.
-- **60s timeout on synthesis.** If Haiku doesn't respond in 60 seconds, you get a red error banner in the AI-driven sections (Week So Far, Needs reply, Action items, Completed) with the actual error + payload diagnostics. Click `↻ AI` to retry against the same cached source data.
-- **Prioritization is advisory.** "Next: do this" runs off a cached snapshot (default 6h TTL). Time-sensitive priorities may lag a few hours — manual review of Needs reply and open Linear tickets remains authoritative.
-- **Linear + Calendar are the only write surfaces.** The Hub reads Slack and email but never writes back — no draft messages, no replies, no labels. Every write (Linear ticket create/complete, calendar event create) is gated by an explicit confirmation card.
+- **MCP rebind.** The `<script id="cowork-artifact-meta">` block at the top of `index.html` declares the MCP tool names this artifact uses, each shaped `mcp__<server-uuid>__<tool-name>`. Cowork *should* rebind those UUIDs to your installed servers based on the parallel `mcpServerNames` array. If that fails (you see empty sections + console errors like "tool not found"), find your UUIDs in Cowork → settings → MCP servers and manually replace them in both the meta JSON block *and* the JS constants near line 1000 (`SLACK_SEARCH`, `CAL_LIST`, `LINEAR_TEAMS`, etc.).
+- **Browser-local storage only.** Data persists in localStorage and IndexedDB on whatever device opens the Hub. Switching laptops means re-running Backfill on the new one. Cross-device sync is not implemented.
+- **Haiku-only synthesis.** The Cowork `askClaude` binding uses Haiku. Fast and cheap; occasionally less reliable on edge cases than Sonnet would be.
+- **60s timeout on synthesis.** If Haiku doesn't respond, you get a red banner with the actual error + payload size in the AI-driven sections (Week So Far, Needs Reply, Action items, Completed). Click `↻ AI` to retry against the same cached source data.
+- **Prioritization is advisory.** "Next: do this" runs off a cached snapshot (default 6h TTL). Time-sensitive priorities may lag a few hours.
+- **Linear + Calendar are the only write surfaces.** Slack and email are read-only. Every write (Linear ticket create/complete, calendar event create) is gated by an explicit confirmation card.
+
+## Keeping it current
+
+- **Memory JSON.** When your priorities shift, hand-edit the `<script id="optio-memory">` block in `index.html`. Or ask Claude in a Cowork session: "update the embedded memory in the Daily Hub from my current memory.md."
+- **Transcripts list.** New transcript files in your folder don't appear automatically — the list is embedded. Ask Claude: "re-list my meeting transcripts folder and update the embedded list in the Daily Hub."
+- **Transcript excerpts** (Phase 2.3 plumbing). Each transcript entry in the JSON supports an optional `excerpt: string` field, max ~1200 chars. When present, the Hub feeds that excerpt to Haiku as primary evidence for the Week So Far recap and Completed-untracked detection — substantively better than topic labels alone. Hand-populate or have Claude extract from your transcript bodies.
+- **Live data** (Slack, Gmail, Calendar, Drive, Linear, Cowork sessions) refreshes from MCP every 6 hours, or on-demand via the Refresh button. No maintenance.
 
 ## File layout
 
 ```
 daily-hub/
-  index.html        ← the artifact (one ~4000-line file, self-contained)
+  index.html        ← the artifact (~4100-line self-contained HTML)
   daily-hub.md      ← architecture / design doc
+  PLAN.md           ← improvement roadmap (Phases 1 + 2 shipped; Phase 3 deferred)
   README.md         ← this file
   thumbnail.png     ← Cowork artifact thumbnail
   versions/         ← Cowork-managed version history (gitignored)
 ```
 
-## Updating from upstream
-
-Since this is private and shared among Optio colleagues, sync changes by pulling and merging. The maintainer (Dan) commits as features land. If you make your own changes, fork or branch — don't push to `main`.
-
 ## Where it came from
 
-Built as a personal dashboard for Dan Ben-Atar (Director of Data, Optio Incentives) on top of the Cowork MCP framework. The companion memory folder pattern is documented in `daily-hub.md` — recommended reading if you want to mirror the full setup.
+Built as a personal dashboard for Dan Ben-Atar (Director of Data, Optio Incentives) on top of the Cowork MCP framework. The companion memory folder pattern is described in `daily-hub.md` — recommended reading if you want to mirror the full setup beyond what Step 6 sketches.

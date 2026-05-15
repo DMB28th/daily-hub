@@ -30,7 +30,7 @@ Every section is collapsible; state persists per-section in localStorage. Past w
 
 ## Setup playbook
 
-The playbook is eight steps. Each step has a **What** (the goal), a **You** section (what to do or answer), and a **For Claude** note (what the assistant should do in a Cowork session). Run them in order.
+The playbook is nine steps. Each step has a **What** (the goal), a **You** section (what to do or answer), and a **For Claude** note (what the assistant should do in a Cowork session). Run them in order.
 
 ### Step 1 — Verify prerequisites
 
@@ -88,15 +88,30 @@ Replace the JSON contents. Validate that it parses (try `JSON.parse(...)` in you
 
 **You:** Answer the questions. Be honest about what's actually on your plate, not aspirational.
 
-### Step 6 — (Optional) Wire up a memory folder
+### Step 6 — (Optional but recommended) Wire up a memory folder
 
-**What:** The Hub renders `↗` links per workstream pointing at `file://<memory-folder>/refs/<slug>.md`. If you maintain a memory folder, those links open the deep-dive doc on each workstream. If you don't, the links 404 silently.
+**What:** A plain folder of markdown files that lives alongside the Hub. The Hub reads from it (workstream `↗` links open `refs/<slug>.md`); a daily backfill task in Step 9 writes to it. The folder works on its own — no app dependency.
 
-**You:** If you want one, decide on a path (e.g. `~/notes/work-memory/`). Inside, create `refs/<slug>.md` per workstream you listed in Step 5.
+Recommended structure:
+```
+<memory-folder>/
+  memory.md       ← front-door index; you maintain by hand
+  daily/          ← per-day signal briefs, dated YYYY-MM-DD.md (auto-populated)
+  slack/          ← per-day Slack digests (auto-populated)
+  transcripts/    ← meeting transcript stubs that link to source files (auto-populated)
+  refs/           ← one file per long-lived workstream (hand-maintained)
+  people/         ← one file per colleague — comms style, project history (hand-maintained)
+```
 
-**For Claude:** If user wants a memory folder, create the path and a stub `refs/<slug>.md` for each workstream from Step 5. Each stub should have a single H1 header (`# <Workstream Name>`) and a placeholder section. Tell the user to fill them in over time.
+**You:** Pick a folder path (e.g. `~/notes/work-memory/`). Have it handy.
 
-If the user skips this, fine. The Hub doesn't depend on it.
+**For Claude:** If the user wants a memory folder:
+1. Create the directory at the path they provide and all six subdirectories listed above.
+2. Create a starter `memory.md` with these top-level sections, each with a placeholder bullet: `## Right now`, `## Active workstreams`, `## Recent decisions`, `## People`, `## Active artifacts`, `## How to work with me`, `## Archive`. Pre-populate `Active workstreams` and `People` with what the user gave you in Step 5, formatted matching the embedded JSON schema.
+3. Create a stub `refs/<slug>.md` for each workstream from Step 5 — single H1 header (`# <Workstream Name>`) and a placeholder "## Status" section.
+4. Tell the user the folder is ready and that Step 9 will install a daily task that populates `daily/`, `slack/`, and `transcripts/` automatically.
+
+If the user skips this step entirely, that's fine — the Hub still works. Step 9 then has nothing to schedule and should be skipped too.
 
 ### Step 7 — Install the artifact in Cowork
 
@@ -118,6 +133,24 @@ If the user skips this, fine. The Hub doesn't depend on it.
 - After ~10s, the Week So Far synthesis text fills in.
 
 **For Claude:** Ask the user what they see. If anything's stuck on "Loading..." indefinitely or empty when it shouldn't be, walk through the **MCP rebind** caveat below — the hardcoded MCP server UUIDs may not match the user's installations.
+
+### Step 9 — (Optional) Install the daily-backfill scheduled task
+
+**What:** A Cowork scheduled task that runs every morning at 7am local time, pulls the last 24h of Slack / Calendar / Drive / Linear / (optionally Notion + transcripts) activity, and writes daily briefs into the memory folder you created in Step 6. It makes conservative additions to `memory.md` (Recent decisions, Active workstreams `last_touched`, Active artifacts) but never touches the curated "Right now" or "How to work with me" sections.
+
+Skip this entire step if you didn't set up a memory folder in Step 6. Without one, there's nothing for the task to write to.
+
+**You:** Decide whether you want auto-population. If yes: you'll need (a) your memory folder path from Step 6, (b) your Slack member ID from Step 3, and (c) your transcripts folder path from Step 3 if you have one. Confirm your preferred run time (default 7am local).
+
+**For Claude:**
+1. Read the template skill at `<repo>/daily-backfill-SKILL.md` in the cloned repo.
+2. Customize the three `<<MEMORY_FOLDER>>`, `<<SLACK_ID>>`, `<<TRANSCRIPTS_FOLDER>>` placeholders with the values gathered above.
+3. If the user has no transcripts folder, delete the entire "Meeting transcripts" section (item #4 in the PULL block) from the customized copy and adjust the OUTPUT summary line accordingly.
+4. Write the customized skill to `~/Documents/Claude/Scheduled/daily-backfill/SKILL.md` (or whatever path the user's Cowork install uses for scheduled tasks — confirm with them if uncertain). Create the directory if missing.
+5. Use the `schedule` skill (built into Cowork) to register the task on a cron of `0 7 * * *` (7am daily local time, adjust if user wants different). Confirm registration succeeded; show the user the scheduled-task ID.
+6. Offer to do a one-time dry run immediately so they can see what the task produces before tomorrow morning's first scheduled invocation.
+
+After this lands, the task will run nightly and populate `daily/YYYY-MM-DD.md`, `slack/YYYY-MM-DD.md`, and new `transcripts/*.md` stubs automatically. The Hub will pick those up on next reload via the embedded memory JSON (which the user can refresh by asking Claude in a Cowork session: "update the embedded memory in the Daily Hub from my current memory.md").
 
 ---
 
@@ -141,12 +174,13 @@ If the user skips this, fine. The Hub doesn't depend on it.
 
 ```
 daily-hub/
-  index.html        ← the artifact (~4100-line self-contained HTML)
-  daily-hub.md      ← architecture / design doc
-  PLAN.md           ← improvement roadmap (Phases 1 + 2 shipped; Phase 3 deferred)
-  README.md         ← this file
-  thumbnail.png     ← Cowork artifact thumbnail
-  versions/         ← Cowork-managed version history (gitignored)
+  index.html                  ← the artifact (~4100-line self-contained HTML)
+  daily-hub.md                ← architecture / design doc
+  daily-backfill-SKILL.md     ← template scheduled-task skill (Step 9)
+  PLAN.md                     ← improvement roadmap (Phases 1 + 2 shipped; Phase 3 deferred)
+  README.md                   ← this file
+  thumbnail.png               ← Cowork artifact thumbnail
+  versions/                   ← Cowork-managed version history (gitignored)
 ```
 
 ## Where it came from
